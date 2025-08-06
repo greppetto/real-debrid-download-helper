@@ -1,0 +1,94 @@
+# Platform Specific Files
+.DS_Store
+
+# Virtual Environments
+/.venv/
+
+# Workflow
+*.orig
+/TODO.org
+
+# Editor Specific Files
+\#*
+.#*
+*~
+.*.swp
+.vscode
+.idea
+
+# Prerequisites
+*.d
+
+# Compiled Object Files
+*.o
+*.slo
+*.lo
+*.so
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Linker Files
+*.ilk
+
+# Executables
+*.exe
+*.out
+*.app
+
+# Python Bytecode
+*.pyc
+*.pyo
+__pycache__
+*.pyd
+
+# Compiled Dynamic Libraries
+*.so
+*.dylib
+*.dll
+
+# Compiled Static Libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Fortran Module Files
+*.mod
+*.smod
+
+# Build System
+/bin
+/.bin
+/build/
+/deps
+/.ccls-cache
+/.cache
+/cmake-build-*
+
+# CMake (loc: src)
+CMakeLists.txt.user
+/DartConfiguration.tcl
+CMakeFiles
+cmake_install.cmake
+CMakeCache.txt
+Makefile
+
+# CMake + LSP
+/compile_commands.json
+
+# Debugger Files
+callgrind.out.*
+perf.data*
+.gdb_history
+*.dwo
+*.pdb
+
+# Code Search
+/.ignore
+/.globalrc
+/GPATH
+/GRTAGS
+/GTAGS
