@@ -45,11 +45,12 @@ endif()
 
 set(SOURCES src/main.cpp)
 set(EXECUTABLE_NAME rd2a)
-set(LIBRARY_SOURCES src/tui.cpp src/util.cpp)
+set(LIBRARY_SOURCES src/tui.cpp src/util.cpp src/api.cpp)
 set(LIBRARIES_NAME helperlibs)
 
 add_library(${LIBRARIES_NAME} ${LIBRARY_SOURCES})
 add_executable(${EXECUTABLE_NAME} ${SOURCES})
 
 target_link_libraries(${EXECUTABLE_NAME} PRIVATE cpr::cpr nlohmann_json::nlohmann_json)
+target_link_libraries(${LIBRARIES_NAME} PRIVATE cpr::cpr nlohmann_json::nlohmann_json)
 target_link_libraries(${EXECUTABLE_NAME} PRIVATE ${LIBRARIES_NAME})

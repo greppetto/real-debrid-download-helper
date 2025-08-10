@@ -3,6 +3,7 @@
 
 # Virtual Environments
 /.venv/
+.env
 
 # Workflow
 *.orig

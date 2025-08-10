@@ -16,3 +16,19 @@ cmake -B build -S .
 cmake --build build
 ./build/rda
 ```
+
+## API Token
+
+- Linux/macOS:
+
+```bash
+export REAL_DEBRID_API_TOKEN=your_token_here
+./myapp
+```
+
+- Windows (PowerShell):
+
+```powershell
+$env:REAL_DEBRID_API_TOKEN=your_token_here
+.\myapp.exe
+```

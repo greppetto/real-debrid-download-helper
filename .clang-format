@@ -1,6 +1,6 @@
 BasedOnStyle: LLVM
 IndentWidth: 2
-ColumnLimit: 80
+ColumnLimit: 150
 DerivePointerAlignment: false
 PointerAlignment: Left
 AllowShortFunctionsOnASingleLine: Empty
