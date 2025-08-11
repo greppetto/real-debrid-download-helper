@@ -1,4 +1,5 @@
 #include "api.hpp"
+#include "util.hpp"
 #include <chrono>
 #include <cpr/cpr.h>
 #include <iostream>
@@ -110,23 +111,43 @@ bool api::RealDebridClient::wait_for_status(const std::string& torrent_id, const
 }
 
 std::vector<std::string> api::RealDebridClient::get_download_links(const std::vector<std::string>& links) {
+  std::mutex print_mutex;
   std::vector<std::string> unrestricted_download_links;
   unrestricted_download_links.reserve(links.size());
 
-  for (const auto& link : links) {
-    std::println("Restricted link: {}", link);
+  // API restricted to 250 requests per minute
+  util::TokenBucket bucket(4, 4.0);
 
-    if (auto parsed_response = request_json(HTTPMethod::POST, "/unrestrict/link", cpr::Payload{{"link", link}})) {
-      auto& parsed_json = (*parsed_response);
-      if (parsed_json.contains("download") && parsed_json["download"].is_string()) {
-        unrestricted_download_links.push_back(parsed_json["download"]);
-        std::println("Unrestricted counterpart: {}", unrestricted_download_links.back());
+  std::vector<std::future<std::optional<std::string>>> futures;
+
+  for (const auto& link : links) {
+    futures.push_back(std::async(std::launch::async, [&] {
+      bucket.consume();
+
+      if (auto parsed_response = request_json(HTTPMethod::POST, "/unrestrict/link", cpr::Payload{{"link", link}})) {
+        auto& parsed_json = (*parsed_response);
+        if (parsed_json.contains("download") && parsed_json["download"].is_string()) {
+          std::string download_link = parsed_json["download"];
+          {
+            std::scoped_lock lock(print_mutex);
+            std::println("Unrestricted counterpart: {}", download_link);
+          }
+          return std::optional<std::string>{std::move(download_link)};
+        } else {
+          std::println("Unexpected response format for link: {}", link);
+        }
       } else {
-        std::println("Unexpected response format for link: {}", link);
+        std::println("Failed to unrestrict link: {}", link);
       }
-    } else {
-      std::println("Failed to unrestrict link: {}", link);
+      return std::optional<std::string>{};
+    }));
+  }
+
+  for (auto& future : futures) {
+    if (auto link = future.get()) {
+      unrestricted_download_links.emplace_back(std::move(*link));
     }
   }
+
   return unrestricted_download_links;
 }

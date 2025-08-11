@@ -1,7 +1,9 @@
 #pragma once
 
+#include <chrono>
 #include <cstdlib>
 #include <iostream>
+#include <mutex>
 #include <string>
 
 namespace util {
@@ -31,5 +33,26 @@ inline std::string get_rd_token() {
   }
   return std::string{raw_token};
 }
+
+// The following class helps with parallelization of link unrestriction
+class TokenBucket {
+public:
+  // Constructor
+  TokenBucket(size_t capacity, double refill_rate_per_sec);
+
+  // Consume token
+  void consume();
+
+private:
+  // Refill bucket
+  void refill();
+
+  size_t capacity;
+  size_t tokens;
+  double refill_rate;
+  std::chrono::steady_clock::time_point last_refill;
+  std::mutex bucket_mtx;
+  std::condition_variable cv;
+};
 
 } // namespace util
