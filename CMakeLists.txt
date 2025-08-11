@@ -45,7 +45,7 @@ endif()
 
 set(SOURCES src/main.cpp)
 set(EXECUTABLE_NAME rd2a)
-set(LIBRARY_SOURCES src/tui.cpp src/util.cpp src/api.cpp)
+set(LIBRARY_SOURCES src/tui.cpp src/util.cpp src/api.cpp src/aria2_manager.cpp)
 set(LIBRARIES_NAME helperlibs)
 
 add_library(${LIBRARIES_NAME} ${LIBRARY_SOURCES})

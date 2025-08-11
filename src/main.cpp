@@ -1,4 +1,5 @@
 #include "api.hpp"
+#include "aria2_manager.hpp"
 #include "tui.hpp"
 #include "util.hpp"
 #include <optional>
@@ -13,6 +14,7 @@ int main() {
   AppState state = AppState::PromptMagnet;
   std::string magnet{};
   std::vector<api::Torrent> torrents;
+  aria2::aria2Manager aria2_manager;
 
   while (state != AppState::Finished && state != AppState::Error) {
     switch (state) {
@@ -35,15 +37,33 @@ int main() {
       // Place it into the vector if so
       if (auto torrent = client.send_magnet_link(magnet)) {
         torrents.emplace_back(*torrent);
+      } else {
+        state = AppState::Error;
       }
       state = AppState::WaitForConversion;
       break;
 
     case AppState::WaitForConversion:
       if (client.wait_for_status(torrents.back().id, "downloaded")) {
-        client.get_download_links(torrents.back().links);
+        torrents.back().links = client.get_download_links(torrents.back().links);
+        state = AppState::DownloadFiles;
+      } else {
+        state = AppState::Error;
       }
+      break;
+
+    case AppState::DownloadFiles:
+      aria2_manager.download(torrents.back().links);
       state = AppState::Finished;
+      break;
+
+    case AppState::Finished:
+      std::println("Process complete.");
+      break;
+
+    case AppState::Error:
+      std::println("Encountered an unknown error. Please try again.");
+      break;
     }
   }
 }
