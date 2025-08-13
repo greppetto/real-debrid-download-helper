@@ -7,7 +7,8 @@ namespace aria2 {
 
 class aria2Manager {
 public:
-  void download(const std::vector<std::string>& urls);
+  void download_and_exit(const std::vector<std::string>& links);
+  bool launch(const std::vector<std::string>& links, const std::string& download_dir);
   void shutdown();
 };
 

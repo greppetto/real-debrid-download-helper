@@ -53,7 +53,7 @@ int main() {
       break;
 
     case AppState::DownloadFiles:
-      aria2_manager.download(torrents.back().links);
+      aria2_manager.launch(torrents.back().links, ".");
       state = AppState::Finished;
       break;
 
