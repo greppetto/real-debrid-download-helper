@@ -5,14 +5,14 @@ A simple tool with a TUI to simplify the process of downloading torrents through
 ## Features
 
 - Add magnet links to Real-Debrid
-- Monitor progress and unrestrict direct links
+- Monitor progress (planned) and unrestrict direct links
 - Download files using `aria2c`
 - Simple TUI (planned)
 
 ## Build
 
 ```bash
-cmake -B build -S .
+cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 ./build/rda
 ```
@@ -20,14 +20,12 @@ cmake --build build
 ## API Token
 
 - Linux/macOS:
-
 ```bash
 export REAL_DEBRID_API_TOKEN=your_token_here
 ./myapp
 ```
 
 - Windows (PowerShell):
-
 ```powershell
 $env:REAL_DEBRID_API_TOKEN=your_token_here
 .\myapp.exe
