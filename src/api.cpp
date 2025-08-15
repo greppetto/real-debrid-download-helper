@@ -88,6 +88,7 @@ std::optional<api::Torrent> api::RealDebridClient::send_magnet_link(const std::s
 }
 
 bool api::RealDebridClient::wait_for_status(const std::string& torrent_id, const std::string& desired_status, int max_retries) const {
+  // TODO: Add dynamic poll_interval
   for (int i = 0; i < max_retries; ++i) {
     std::this_thread::sleep_for(poll_interval);
     if (auto parsed_response = request_json(HTTPMethod::GET, "/torrents/info/" + torrent_id)) {

@@ -1,5 +1,8 @@
 #include "aria2_manager.hpp"
+#include <cpr/cpr.h>
 #include <iostream>
+#include <nlohmann/json.hpp>
+#include <print>
 #include <sstream>
 #include <string>
 #include <thread>
@@ -13,30 +16,9 @@
 #include <unistd.h>
 #endif
 
-void aria2::aria2Manager::download_and_exit(const std::vector<std::string>& links) {
-  if (links.empty()) {
-    std::println("No download links provided.");
-    return;
-  }
+using json = nlohmann::json;
 
-  // Build command line: aria2c <url1> <url2> ... --dir=downloads --continue=true
-  // Customize options as needed
-  std::stringstream cmd;
-  cmd << "aria2c --dir=downloads --continue=true";
-
-  for (const auto& link : links) {
-    cmd << " \"" << link << "\"";
-  }
-
-  std::println("Running command: {}", cmd.str());
-
-  int output = std::system(cmd.str().c_str());
-  if (output != 0) {
-    std::println("aria2c exited with code {}.", output);
-  }
-}
-
-bool aria2::aria2Manager::launch(const std::vector<std::string>& links, const std::string& download_dir) {
+bool aria2::aria2Manager::start_download_and_exit(const std::vector<std::string>& links, const std::string& download_dir) {
   if (links.empty()) {
     std::cerr << "[Aria2] No URLs provided.\n";
     return false;
@@ -51,6 +33,11 @@ bool aria2::aria2Manager::launch(const std::vector<std::string>& links, const st
 
   std::string command = cmd.str();
   std::cout << "[Aria2] Launching: " << command << "\n";
+
+  // int output = std::system(cmd.str().c_str());
+  //  if (output != 0) {
+  //    std::println("aria2c exited with code {}.", output);
+  //  }
 
 #ifdef _WIN32
   // On Windows: use CreateProcess to avoid blocking
@@ -94,4 +81,36 @@ bool aria2::aria2Manager::launch(const std::vector<std::string>& links, const st
 #endif
 
   return true;
+}
+
+std::optional<std::string> aria2::aria2Manager::add_download(const std::string& link) {
+  json payload = {{"jsonrpc", "2.0"}, {"id", "JID"}, {"method", "aria2.addUri"}, {"params", {"token:nuclearlaunchcode", json::array({link})}}};
+
+  cpr::Response response =
+      cpr::Post(cpr::Url{"http://localhost:6800/jsonrpc"}, cpr::Body{payload.dump()}, cpr::Header{{"Content-Type", "application/json"}});
+
+  if (response.status_code == 200) {
+    auto parsed_json = json::parse(response.text);
+    if (parsed_json.contains("result")) {
+      return parsed_json["result"].get<std::string>();
+    }
+  }
+  return std::nullopt;
+}
+
+std::optional<json> aria2::aria2Manager::get_status(const std::string& gid) {
+  json payload = {
+      {"jsonrpc", "2.0"},
+      {"id", "JID"},
+      {"method", "aria2.tellStatus"},
+      {"params", {"token:nuclearlaunchcode", gid, json::array({"status", "totalLength", "completedLength", "downloadSpeed", "connections"})}}};
+
+  cpr::Response response =
+      cpr::Post(cpr::Url{"http://localhost:6800/jsonrpc"}, cpr::Body{payload.dump()}, cpr::Header{{"Content-Type", "application/json"}});
+
+  if (response.status_code == 200) {
+    auto parsed_json = json::parse(response.text);
+    return parsed_json;
+  }
+  return std::nullopt;
 }
