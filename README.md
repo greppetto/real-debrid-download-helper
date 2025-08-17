@@ -1,13 +1,13 @@
 # rd2aria
 
-A simple tool with a TUI to simplify the process of downloading torrents through Real-Debrid using aria2.
+A simple tool with a CLI to simplify the process of downloading torrents through Real-Debrid using aria2.
 
 ## Features
 
 - Add magnet links to Real-Debrid
-- Monitor progress (planned) and unrestrict direct links
+- Unrestrict links
 - Download files using `aria2c`
-- Simple TUI (planned)
+- Simple CLI
 
 ## Build
 
@@ -20,12 +20,14 @@ cmake --build build
 ## API Token
 
 - Linux/macOS:
+
 ```bash
 export REAL_DEBRID_API_TOKEN=your_token_here
 ./myapp
 ```
 
 - Windows (PowerShell):
+
 ```powershell
 $env:REAL_DEBRID_API_TOKEN=your_token_here
 .\myapp.exe

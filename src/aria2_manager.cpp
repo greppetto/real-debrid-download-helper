@@ -1,9 +1,11 @@
 #include "aria2_manager.hpp"
+#include "util.hpp"
 #include <cpr/cpr.h>
 #include <iostream>
 #include <nlohmann/json.hpp>
 #include <print>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <thread>
 #include <vector>
@@ -18,28 +20,18 @@
 
 using json = nlohmann::json;
 
-bool aria2::aria2Manager::start_download_and_exit(const std::vector<std::string>& links, const std::string& download_dir) {
-  if (links.empty()) {
+void aria2::aria2Manager::launch_aria2(const std::string& links_file) {
+  if (links_file.empty()) {
     std::cerr << "[Aria2] No URLs provided.\n";
-    return false;
   }
-
-  // Build the aria2c command
-  std::ostringstream cmd;
-  cmd << "aria2c --dir=\"" << download_dir << "\" --continue=true --max-connection-per-server=4";
-  for (const auto& link : links) {
-    cmd << " \"" << link << "\"";
-  }
-
-  std::string command = cmd.str();
-  std::cout << "[Aria2] Launching: " << command << "\n";
-
-  // int output = std::system(cmd.str().c_str());
-  //  if (output != 0) {
-  //    std::println("aria2c exited with code {}.", output);
-  //  }
 
 #ifdef _WIN32
+  // Build the aria2c command
+  std::ostringstream cmd;
+  cmd << "aria2c -i "
+         " << links_file << -x16 -s16 --continue=true --max-connection-per-server=4";
+  std::string command = cmd.str();
+
   // On Windows: use CreateProcess to avoid blocking
   STARTUPINFOA si{};
   PROCESS_INFORMATION pi{};
@@ -57,7 +49,7 @@ bool aria2::aria2Manager::start_download_and_exit(const std::vector<std::string>
                      &si,                 // Pointer to STARTUPINFO structure
                      &pi)                 // Pointer to PROCESS_INFORMATION structure) 
   {
-    std::cerr << "[Aria2] Failed to launch process. Error: " << GetLastError() << "\n";
+    util::fatal_exit("[Aria2] Failed to launch process. Error: " + static_cast<std::string>(GetLastError()) + "\n");
     return;
   }
 
@@ -68,22 +60,32 @@ bool aria2::aria2Manager::start_download_and_exit(const std::vector<std::string>
   // On Linux/macOS: fork + exec
   pid_t pid = fork();
   if (pid == 0) {
-    // Child process
-    // The function call "execl()" initiates a new program in the same environment in which it is operating
-    // The list of arguments is terminated by NULL
-    execl("/bin/sh", "sh", "-c", command.c_str(), (char*)nullptr);
-    _exit(127); // exec failed
+    // Child process: detach from terminal
+    if (setsid() < 0) {
+      _exit(1); // exec failed
+    }
+
+    // Prepare arguments
+    char* args[] = {(char*)"aria2c",
+                    (char*)"-i",
+                    (char*)links_file.c_str(),
+                    (char*)"-x 16",
+                    (char*)"-s 16",
+                    (char*)"--continue=true",
+                    (char*)"--max-connection-per-server=4",
+                    nullptr};
+
+    execvp("aria2c", args);
+    // If execvp returns, there was an error
+    _exit(1); // exec failed
   } else if (pid < 0) {
-    std::cerr << "[Aria2] fork() failed.\n";
-    return false;
+    util::fatal_exit("[Aria2] Failed to fork process.");
   }
   // aria2c runs independently
 #endif
-
-  return true;
 }
 
-std::optional<std::string> aria2::aria2Manager::add_download(const std::string& link) {
+std::optional<std::string> aria2::aria2Manager::rpc_add_download(const std::string& link) {
   json payload = {{"jsonrpc", "2.0"}, {"id", "JID"}, {"method", "aria2.addUri"}, {"params", {"token:nuclearlaunchcode", json::array({link})}}};
 
   cpr::Response response =
@@ -98,7 +100,7 @@ std::optional<std::string> aria2::aria2Manager::add_download(const std::string& 
   return std::nullopt;
 }
 
-std::optional<json> aria2::aria2Manager::get_status(const std::string& gid) {
+std::optional<json> aria2::aria2Manager::rpc_get_status(const std::string& gid) {
   json payload = {
       {"jsonrpc", "2.0"},
       {"id", "JID"},

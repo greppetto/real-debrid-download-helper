@@ -5,8 +5,19 @@
 #include <iostream>
 #include <mutex>
 #include <string>
+#include <tuple>
 
 namespace util {
+
+[[noreturn]] inline void fatal_error(const std::string& message) {
+  std::cerr << "Error: " << message << std::endl;
+  throw std::runtime_error(message);
+}
+
+[[noreturn]] inline void fatal_exit(const std::string& message, int exit_code = 1) {
+  std::cerr << "Fatal: " << message << std::endl;
+  std::exit(exit_code);
+}
 
 bool validate_magnet_link(const std::string& magnet);
 
@@ -34,6 +45,8 @@ inline std::string get_rd_token() {
   return std::string{raw_token};
 }
 
+std::tuple<std::string, bool, std::string> parse_arguments(int argc, char* argv[]);
+
 // The following class helps with parallelization of link unrestriction
 class TokenBucket {
 public:
@@ -54,5 +67,7 @@ private:
   std::mutex bucket_mtx;
   std::condition_variable cv;
 };
+
+bool create_text_file(const std::vector<std::string>& links, const std::string& file_path);
 
 } // namespace util

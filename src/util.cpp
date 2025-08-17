@@ -1,4 +1,5 @@
 #include "util.hpp"
+#include "CLI11.hpp"
 #include <chrono>
 #include <condition_variable>
 #include <cstdlib>
@@ -6,6 +7,7 @@
 #include <iostream>
 #include <mutex>
 #include <string>
+#include <vector>
 
 bool util::validate_magnet_link(const std::string& magnet) {
   constexpr std::string_view prefix = "magnet:?xt=urn:btih:";
@@ -44,6 +46,26 @@ void util::load_env_file(const std::string& path) {
   }
 }
 
+std::tuple<std::string, bool, std::string> util::parse_arguments(int argc, char* argv[]) {
+  CLI::App app{"Real-Debrid → Aria2 helper"};
+
+  std::string magnet{};
+  bool links_flag = false;
+  std::string output_file{};
+
+  app.add_option("-m,--magnet", magnet, "Magnet link")->required();
+  app.add_flag("-l,--links", links_flag, "Only print unrestricted links");
+  app.add_option("-o,--output", output_file, "Save unrestricted links to file");
+
+  try {
+    app.parse(argc, argv);
+  } catch (const CLI::ParseError& e) {
+    std::exit(app.exit(e));
+  }
+
+  return {magnet, links_flag, output_file};
+}
+
 util::TokenBucket::TokenBucket(size_t capacity, double refill_rate_per_sec)
     : capacity(capacity), tokens(capacity), refill_rate(refill_rate_per_sec), last_refill(std::chrono::steady_clock::now()) {}
 
@@ -63,4 +85,22 @@ void util::TokenBucket::refill() {
     last_refill = time_now;
     cv.notify_all();
   }
+}
+
+bool util::create_text_file(const std::vector<std::string>& links, const std::string& file_path) {
+  // Open file in append mode
+  std::ofstream file(file_path, std::ios::app);
+
+  if (!file.is_open()) {
+    std::cerr << "Error: Could not open file!\n";
+    return false;
+  }
+
+  // Append links
+  for (const auto& link : links) {
+    file << link << '\n';
+  }
+
+  file.close();
+  return true;
 }

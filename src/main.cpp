@@ -2,26 +2,35 @@
 #include "aria2_manager.hpp"
 #include "tui.hpp"
 #include "util.hpp"
+#include <cassert>
 #include <optional>
 #include <print>
+#include <ranges>
 #include <thread>
 
-enum class AppState { PromptMagnet, ValidateMagnet, SendToAPI, WaitForConversion, DownloadFiles, Finished, Error };
+enum class AppState { ParseArguments, ValidateMagnet, SendToAPI, WaitForConversion, DownloadFiles, Finished, Error };
 
-int main() {
+int main(int argc, char* argv[]) {
+  constexpr std::string default_output_file{"/tmp/aria2_links.txt"};
   const std::string my_token{util::get_rd_token()};
-  std::println("Token: {}", my_token);
   api::RealDebridClient client{my_token};
-  AppState state = AppState::PromptMagnet;
+  AppState state = AppState::ParseArguments;
   std::string magnet{};
+  bool links_flag;
+  std::string output_file{};
   std::vector<api::Torrent> torrents;
   aria2::aria2Manager aria2_manager;
-  aria2_manager.start_aria2_daemon();
+  // aria2_manager.start_aria2_daemon();
 
   while (state != AppState::Finished && state != AppState::Error) {
     switch (state) {
-    case AppState::PromptMagnet: {
-      magnet = tui::prompt_for_magnet_link();
+    case AppState::ParseArguments: {
+      std::tie(magnet, links_flag, output_file) = util::parse_arguments(argc, argv);
+#ifndef NDEBUG
+      magnet = "magnet:?xt=urn:btih:RIMVO75V62IJODFEHJL76EARVYQCERFY&dn=ubuntu-25."
+               "04-desktop-amd64.iso&xl=6278520832&tr=https%3A%2F%2Ftorrent.ubuntu."
+               "com%2Fannounce";
+#endif
       state = AppState::ValidateMagnet;
       break;
     }
@@ -49,37 +58,36 @@ int main() {
     }
 
     case AppState::WaitForConversion: {
-      if (client.wait_for_status(torrents.back().id, "downloaded")) {
-        torrents.back().links = client.get_download_links(torrents.back().links);
-        state = AppState::DownloadFiles;
-      } else {
-        state = AppState::Error;
+      auto& torrent = torrents.back();
+      if (client.wait_for_status(torrent.id, "downloaded")) {
+        torrent.links = client.get_download_links(torrent.links);
+        if (output_file.empty()) {
+          output_file = std::move(default_output_file);
+        }
+        if (util::create_text_file(torrent.links, output_file)) {
+          state = AppState::DownloadFiles;
+          break;
+        }
       }
+      state = AppState::Error;
       break;
     }
 
     case AppState::DownloadFiles: {
-      auto& torrent = torrents.back();
-      for (auto& link : torrent.links) {
-        if (auto gid = aria2_manager.add_download(link)) {
-          link = std::move(*gid);
-          std::println("GID: {}", link);
-          // Let download start
-          std::this_thread::sleep_for(std::chrono::seconds(10));
-          if (const auto parsed_response = aria2_manager.get_status(link)) {
-            auto& parsed_json = (*parsed_response);
-            if (parsed_json.contains("result")) {
-              std::println("Status: {}", parsed_json["result"]["status"].get<std::string>());
-              std::println("Completed Length: {}", parsed_json["result"]["completedLength"].get<std::string>());
-              std::println("Total Length: {}", parsed_json["result"]["totalLength"].get<std::string>());
-              std::println("Download Speed: {}", parsed_json["result"]["downloadSpeed"].get<std::string>());
-              std::println("Connections: {}", parsed_json["result"]["connections"].get<std::string>());
-            }
-          }
+      if (links_flag) {
+        auto& torrent = torrents.back();
+        assert(torrent.files.size() == torrent.links.size());
+        for (auto&& [name, link] : std::views::zip(torrent.files, torrent.links)) {
+          std::println("{}: {}", name, link);
         }
       }
-      // aria2_manager.start_download_and_exit(torrents.back().links, ".");
-      state = AppState::Finished;
+      try {
+        aria2_manager.launch_aria2(output_file);
+        state = AppState::Finished;
+      } catch (const std::exception& e) {
+        std::cerr << "Fatal error: " << e.what() << std::endl;
+        return 1;
+      }
       break;
     }
 
@@ -89,7 +97,9 @@ int main() {
   }
   if (state == AppState::Finished) {
     std::println("Process complete.");
+    return 0;
   } else if (state == AppState::Error) {
     std::println("Encountered an unknown error. Please try again.");
+    return 1;
   }
 }

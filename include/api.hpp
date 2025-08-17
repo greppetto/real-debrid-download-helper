@@ -11,7 +11,7 @@ namespace api {
 
 struct Torrent {
   std::string id;
-  std::string filename;
+  std::string file_name;
   std::vector<std::string> files;
   std::vector<std::string> links;
 };

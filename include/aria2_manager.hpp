@@ -16,11 +16,11 @@ public:
     std::system(cmd.c_str());
   }
 
-  bool start_download_and_exit(const std::vector<std::string>& links, const std::string& download_dir);
+  void launch_aria2(const std::string& links_file);
 
-  std::optional<std::string> add_download(const std::string& link);
+  std::optional<std::string> rpc_add_download(const std::string& link);
 
-  std::optional<json> get_status(const std::string& gid);
+  std::optional<json> rpc_get_status(const std::string& gid);
 
   void shutdown();
 };

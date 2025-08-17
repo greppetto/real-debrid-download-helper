@@ -48,6 +48,9 @@ set(EXECUTABLE_NAME rd2a)
 set(LIBRARY_SOURCES src/tui.cpp src/util.cpp src/api.cpp src/aria2_manager.cpp)
 set(LIBRARIES_NAME helperlibs)
 
+include_directories(${CMAKE_SOURCE_DIR}/include)
+include_directories(${CMAKE_SOURCE_DIR}/external)
+
 add_library(${LIBRARIES_NAME} ${LIBRARY_SOURCES})
 add_executable(${EXECUTABLE_NAME} ${SOURCES})
 
