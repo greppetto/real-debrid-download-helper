@@ -73,11 +73,12 @@ std::optional<api::Torrent> api::RealDebridClient::send_magnet_link(const std::s
           if (parsed_json.contains("files") && parsed_json.contains("links")) {
             auto files = parsed_json["files"] | std::views::transform([](const json& file) { return file["path"].get<std::string>(); });
             auto links = parsed_json["links"] | std::views::transform([](const json& link) { return link.get<std::string>(); });
-            std::string file_name = parsed_json.contains("filename") && parsed_json["filename"].is_string()
-                                        ? parsed_json["filename"].get<std::string>()
-                                        : "Unknown filename";
-            api::Torrent torrent{generated_id, file_name, std::vector<std::string>{files.begin(), files.end()},
-                                 std::vector<std::string>{links.begin(), links.end()}};
+            std::string torrent_name = parsed_json.contains("filename") && parsed_json["filename"].is_string()
+                                           ? parsed_json["filename"].get<std::string>()
+                                           : "Unknown filename";
+            auto size = parsed_json["bytes"] | std::views::transform([](const json& bytes) { return bytes.get<int>(); });
+            api::Torrent torrent{generated_id, torrent_name, std::vector<std::string>{files.begin(), files.end()},
+                                 std::vector<std::string>{links.begin(), links.end()}, size};
             return torrent;
           }
         }
@@ -87,10 +88,22 @@ std::optional<api::Torrent> api::RealDebridClient::send_magnet_link(const std::s
   return std::nullopt;
 }
 
-bool api::RealDebridClient::wait_for_status(const std::string& torrent_id, const std::string& desired_status, int max_retries) const {
-  // TODO: Add dynamic poll_interval
+bool api::RealDebridClient::wait_for_status(const std::string& torrent_id, const std::string& desired_status, int torrent_size) const {
+  int max_retries, initial_interval;
+  if (torrent_size < 500 * 1024 * 1024) { // < 500MB
+    max_retries = 30;                     // ~2.5 min
+    initial_interval = 5;
+  } else if (torrent_size < 5ULL * 1024 * 1024 * 1024) { // 500MB–5GB
+    max_retries = 120;                                   // ~20 min
+    initial_interval = 10;
+  } else {             // > 5GB
+    max_retries = 300; // ~2.5 hours
+    initial_interval = 30;
+  }
+  int interval = initial_interval;
+  int max_interval = 300;
+
   for (int i = 0; i < max_retries; ++i) {
-    std::this_thread::sleep_for(poll_interval);
     if (auto parsed_response = request_json(HTTPMethod::GET, "/torrents/info/" + torrent_id)) {
       auto& parsed_json = (*parsed_response);
       std::string status =
@@ -105,6 +118,11 @@ bool api::RealDebridClient::wait_for_status(const std::string& torrent_id, const
       }
     } else {
       return false;
+    }
+
+    std::this_thread::sleep_for(interval);
+    if (interval < max_interval) {
+      interval = std::min(interval * 2, max_interval);
     }
   }
   std::println("Timeout waiting for status: {}", desired_status);

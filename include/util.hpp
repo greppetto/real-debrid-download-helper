@@ -45,7 +45,7 @@ inline std::string get_rd_token() {
   return std::string{raw_token};
 }
 
-std::tuple<std::string, bool, std::string> parse_arguments(int argc, char* argv[]);
+std::tuple<std::string, bool, std::string, bool> parse_arguments(int argc, char* argv[]);
 
 // The following class helps with parallelization of link unrestriction
 class TokenBucket {

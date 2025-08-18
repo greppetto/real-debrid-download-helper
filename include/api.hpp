@@ -11,14 +11,14 @@ namespace api {
 
 struct Torrent {
   std::string id;
-  std::string file_name;
+  std::string name;
   std::vector<std::string> files;
   std::vector<std::string> links;
+  int size;
 };
 
 enum class HTTPMethod { GET, POST, PUT, DELETE };
 
-constexpr std::chrono::seconds poll_interval{2};
 constexpr std::chrono::seconds post_delay{1};
 
 class RealDebridClient {
@@ -29,7 +29,7 @@ public:
   std::optional<Torrent> send_magnet_link(const std::string& magnet) const;
 
   // Polls Real-Debrid to check if the torrent is ready for download
-  bool wait_for_status(const std::string& torrent_id, const std::string& desired_status, int max_retries = 30) const;
+  bool wait_for_status(const std::string& torrent_id, const std::string& desired_status, int torrent_size) const;
 
   // Gets a list of download URLs from Real-Debrid
   std::vector<std::string> get_download_links(const std::vector<std::string>& links);

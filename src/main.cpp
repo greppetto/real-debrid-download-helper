@@ -11,26 +11,24 @@
 enum class AppState { ParseArguments, ValidateMagnet, SendToAPI, WaitForConversion, DownloadFiles, Finished, Error };
 
 int main(int argc, char* argv[]) {
-  constexpr std::string default_output_file{"/tmp/aria2_links.txt"};
+  constexpr std::string default_output_path{"/tmp/"};
   const std::string my_token{util::get_rd_token()};
   api::RealDebridClient client{my_token};
   AppState state = AppState::ParseArguments;
+
   std::string magnet{};
   bool links_flag;
-  std::string output_file{};
+  std::string output_path{};
+  bool aria2_flag;
+
   std::vector<api::Torrent> torrents;
   aria2::aria2Manager aria2_manager;
-  // aria2_manager.start_aria2_daemon();
 
+  // Process loop
   while (state != AppState::Finished && state != AppState::Error) {
     switch (state) {
     case AppState::ParseArguments: {
-      std::tie(magnet, links_flag, output_file) = util::parse_arguments(argc, argv);
-#ifndef NDEBUG
-      magnet = "magnet:?xt=urn:btih:RIMVO75V62IJODFEHJL76EARVYQCERFY&dn=ubuntu-25."
-               "04-desktop-amd64.iso&xl=6278520832&tr=https%3A%2F%2Ftorrent.ubuntu."
-               "com%2Fannounce";
-#endif
+      std::tie(magnet, links_flag, output_path, aria2_flag) = util::parse_arguments(argc, argv);
       state = AppState::ValidateMagnet;
       break;
     }
@@ -59,16 +57,21 @@ int main(int argc, char* argv[]) {
 
     case AppState::WaitForConversion: {
       auto& torrent = torrents.back();
-      if (client.wait_for_status(torrent.id, "downloaded")) {
+      if (client.wait_for_status(torrent.id, "downloaded", torrent.size)) {
         torrent.links = client.get_download_links(torrent.links);
-        if (output_file.empty()) {
-          output_file = std::move(default_output_file);
+        if (output_path.empty()) {
+          output_path = std::move(default_output_path);
+        } else if (output_path.back() != '/') {
+          output_path += '/';
         }
-        if (util::create_text_file(torrent.links, output_file)) {
+        output_path += (torrent.name + "_links.txt");
+        std::println("Output file: {}", output_path);
+        if (util::create_text_file(torrent.links, output_path)) {
           state = AppState::DownloadFiles;
           break;
         }
       }
+      std::cerr << "Timed out waiting for status: downloaded." << std::endl;
       state = AppState::Error;
       break;
     }
@@ -81,13 +84,14 @@ int main(int argc, char* argv[]) {
           std::println("{}: {}", name, link);
         }
       }
-      try {
-        aria2_manager.launch_aria2(output_file);
-        state = AppState::Finished;
-      } catch (const std::exception& e) {
-        std::cerr << "Fatal error: " << e.what() << std::endl;
-        return 1;
+      if (aria2_flag) {
+        try {
+          aria2_manager.launch_aria2(output_path);
+        } catch (const std::exception& e) {
+          util::fatal_exit(e.what());
+        }
       }
+      state = AppState::Finished;
       break;
     }
 
@@ -99,7 +103,7 @@ int main(int argc, char* argv[]) {
     std::println("Process complete.");
     return 0;
   } else if (state == AppState::Error) {
-    std::println("Encountered an unknown error. Please try again.");
+    std::println("Error encountered. Please try again.");
     return 1;
   }
 }

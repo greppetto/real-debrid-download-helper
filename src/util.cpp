@@ -46,16 +46,18 @@ void util::load_env_file(const std::string& path) {
   }
 }
 
-std::tuple<std::string, bool, std::string> util::parse_arguments(int argc, char* argv[]) {
+std::tuple<std::string, bool, std::string, bool> util::parse_arguments(int argc, char* argv[]) {
   CLI::App app{"Real-Debrid → Aria2 helper"};
 
   std::string magnet{};
   bool links_flag = false;
-  std::string output_file{};
+  bool aria2_flag = false;
+  std::string output_folder{};
 
   app.add_option("-m,--magnet", magnet, "Magnet link")->required();
-  app.add_flag("-l,--links", links_flag, "Only print unrestricted links");
-  app.add_option("-o,--output", output_file, "Save unrestricted links to file");
+  app.add_flag("-l,--links", links_flag, "Print unrestricted links");
+  app.add_option("-o,--output", output_folder, "Specify path for output .txt file");
+  app.add_flag("-a,--aria2", aria2_flag, "Start download using aria2");
 
   try {
     app.parse(argc, argv);
@@ -63,7 +65,7 @@ std::tuple<std::string, bool, std::string> util::parse_arguments(int argc, char*
     std::exit(app.exit(e));
   }
 
-  return {magnet, links_flag, output_file};
+  return {magnet, links_flag, output_folder, aria2_flag};
 }
 
 util::TokenBucket::TokenBucket(size_t capacity, double refill_rate_per_sec)
