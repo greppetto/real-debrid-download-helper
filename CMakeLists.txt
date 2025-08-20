@@ -44,8 +44,8 @@ elseif(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
 endif()
 
 set(SOURCES src/main.cpp)
-set(EXECUTABLE_NAME rd2a)
-set(LIBRARY_SOURCES src/tui.cpp src/util.cpp src/api.cpp src/aria2_manager.cpp)
+set(EXECUTABLE_NAME rddl)
+set(LIBRARY_SOURCES src/util.cpp src/api.cpp src/aria2_manager.cpp src/shutdown_handler.cpp)
 set(LIBRARIES_NAME helperlibs)
 
 include_directories(${CMAKE_SOURCE_DIR}/include)

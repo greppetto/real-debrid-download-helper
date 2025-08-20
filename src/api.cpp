@@ -1,4 +1,5 @@
 #include "api.hpp"
+#include "shutdown_handler.hpp"
 #include "util.hpp"
 #include <chrono>
 #include <cpr/cpr.h>
@@ -56,9 +57,10 @@ std::optional<json> api::RealDebridClient::request_json(HTTPMethod method, const
 }
 
 std::optional<api::Torrent> api::RealDebridClient::send_magnet_link(const std::string& magnet) const {
+  std::println("Sending magnet link to Real-Debrid for caching...");
   if (auto parsed_response = request_json(HTTPMethod::POST, "/torrents/addMagnet", cpr::Payload{{"magnet", magnet}})) {
     std::string generated_id = (*parsed_response)["id"].get<std::string>();
-    std::println("Generated ID: {}", generated_id);
+    std::println("Successfully done! Generated ID: {}", generated_id);
     if (auto parsed_response = request_json(HTTPMethod::GET, "/torrents/info/" + generated_id)) {
       auto& parsed_json = (*parsed_response);
       if (parsed_json.contains("status") && parsed_json["status"].is_string() && wait_for_status(generated_id, "waiting_files_selection")) {
@@ -76,7 +78,7 @@ std::optional<api::Torrent> api::RealDebridClient::send_magnet_link(const std::s
             std::string torrent_name = parsed_json.contains("filename") && parsed_json["filename"].is_string()
                                            ? parsed_json["filename"].get<std::string>()
                                            : "Unknown filename";
-            auto size = parsed_json["bytes"] | std::views::transform([](const json& bytes) { return bytes.get<int>(); });
+            auto size = parsed_json.contains("bytes") ? parsed_json["bytes"].get<int>() : 0;
             api::Torrent torrent{generated_id, torrent_name, std::vector<std::string>{files.begin(), files.end()},
                                  std::vector<std::string>{links.begin(), links.end()}, size};
             return torrent;
@@ -104,6 +106,12 @@ bool api::RealDebridClient::wait_for_status(const std::string& torrent_id, const
   int max_interval = 300;
 
   for (int i = 0; i < max_retries; ++i) {
+    if (shutdown_handler::shutdown_requested) {
+      break;
+    }
+    if (i % 10 == 0) {
+      std::println("Waiting for torrent to be cached...");
+    }
     if (auto parsed_response = request_json(HTTPMethod::GET, "/torrents/info/" + torrent_id)) {
       auto& parsed_json = (*parsed_response);
       std::string status =
@@ -120,12 +128,12 @@ bool api::RealDebridClient::wait_for_status(const std::string& torrent_id, const
       return false;
     }
 
-    std::this_thread::sleep_for(interval);
+    std::this_thread::sleep_for(static_cast<std::chrono::seconds>(interval));
     if (interval < max_interval) {
       interval = std::min(interval * 2, max_interval);
     }
   }
-  std::println("Timeout waiting for status: {}", desired_status);
+  std::println("", desired_status);
   return false;
 }
 
@@ -149,7 +157,7 @@ std::vector<std::string> api::RealDebridClient::get_download_links(const std::ve
           std::string download_link = parsed_json["download"];
           {
             std::scoped_lock lock(print_mutex);
-            std::println("Unrestricted counterpart: {}", download_link);
+            // std::println("Unrestricted counterpart: {}", download_link);
           }
           return std::optional<std::string>{std::move(download_link)};
         } else {

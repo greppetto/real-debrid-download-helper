@@ -1,23 +1,36 @@
-# rd2aria
+# real-debrid-download-helper
 
-A simple tool with a CLI to simplify the process of downloading torrents through Real-Debrid using aria2.
+A simple tool with a CLI to simplify the process of downloading torrents through Real-Debrid.
 
 ## Features
 
-- Add magnet links to Real-Debrid
-- Unrestrict links
-- Download files using `aria2c`
 - Simple CLI
+- Add magnet links to Real-Debrid
+- Wait until torrent is cached and obtain unrestricted links
+- Optionally display the unrestricted links
+- Optionally dump the links into a .txt file in folder of choice
+- Optionally download files using `aria2c`
 
 ## Build
 
 ```bash
 cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
 cmake --build build
-./build/rda
+./build/rddl
 ```
 
+## Options and Flags
+
+    -h,     --help                      Print this help message and exit
+    -t,     --token     TEXT            Set API token and save it locally
+    -m,     --magnet    TEXT REQUIRED   Magnet link
+    -l,     --links                     Print unrestricted links
+    -o,     --output    TEXT            Specify path for output .txt file
+    -a,     --aria2                     Start download using aria2
+
 ## API Token
+
+Either pass the token using the option -t/--token, or add the following to your environment variables:
 
 - Linux/macOS:
 

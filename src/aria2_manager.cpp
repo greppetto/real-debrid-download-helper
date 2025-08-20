@@ -22,14 +22,14 @@ using json = nlohmann::json;
 
 void aria2::aria2Manager::launch_aria2(const std::string& links_file) {
   if (links_file.empty()) {
-    std::cerr << "[Aria2] No URLs provided.\n";
+    std::cerr << "[Aria2] No URLs provided\n";
   }
 
 #ifdef _WIN32
   // Build the aria2c command
   std::ostringstream cmd;
   cmd << "aria2c -i "
-         " << links_file << -x16 -s16 --continue=true --max-connection-per-server=4";
+         " << links_file << -d ./Downloads -x 16 - s16 --continue=true --max-connection-per-server=4";
   std::string command = cmd.str();
 
   // On Windows: use CreateProcess to avoid blocking
@@ -66,20 +66,15 @@ void aria2::aria2Manager::launch_aria2(const std::string& links_file) {
     }
 
     // Prepare arguments
-    char* args[] = {(char*)"aria2c",
-                    (char*)"-i",
-                    (char*)links_file.c_str(),
-                    (char*)"-x 16",
-                    (char*)"-s 16",
-                    (char*)"--continue=true",
-                    (char*)"--max-connection-per-server=4",
+    char* args[] = {(char*)"aria2c", (char*)"-i",    (char*)links_file.c_str(), (char*)"-d ./Downloads",
+                    (char*)"-x 16",  (char*)"-s 16", (char*)"--continue=true",  (char*)"--max-connection-per-server=4",
                     nullptr};
 
     execvp("aria2c", args);
     // If execvp returns, there was an error
     _exit(1); // exec failed
   } else if (pid < 0) {
-    util::fatal_exit("[Aria2] Failed to fork process.");
+    util::fatal_exit("[Aria2] Failed to fork process");
   }
   // aria2c runs independently
 #endif

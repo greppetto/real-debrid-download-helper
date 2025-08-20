@@ -29,7 +29,7 @@ public:
   std::optional<Torrent> send_magnet_link(const std::string& magnet) const;
 
   // Polls Real-Debrid to check if the torrent is ready for download
-  bool wait_for_status(const std::string& torrent_id, const std::string& desired_status, int torrent_size) const;
+  bool wait_for_status(const std::string& torrent_id, const std::string& desired_status, int torrent_size = 0) const;
 
   // Gets a list of download URLs from Real-Debrid
   std::vector<std::string> get_download_links(const std::vector<std::string>& links);
