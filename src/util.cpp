@@ -46,14 +46,37 @@ void util::load_env_file(const std::string& path) {
   }
 }
 
-std::tuple<std::string, bool, std::string, bool> util::parse_arguments(int argc, char* argv[]) {
+std::string util::get_rd_token(std::string& cli_token) {
+  // 1. CLI token provided
+  if (!cli_token.empty()) {
+    std::ofstream env_file(".env", std::ios::trunc);
+    if (!env_file) {
+      throw std::runtime_error("Failed to write .env file");
+    }
+    env_file << "REAL_DEBRID_API_TOKEN=" << cli_token << "\n";
+    env_file.close();
+    std::cerr << "API token saved to .env\n";
+    return cli_token;
+  }
+  load_env_file(".env");
+  // 2. Check environment variable
+  if (const char* env_token = std::getenv("REAL_DEBRID_API_TOKEN")) {
+    return std::string{env_token};
+  } else {
+    fatal_exit("No API token found; Run with -t <token> or set REAL_DEBRID_API_TOKEN environment variable");
+  }
+}
+
+std::tuple<std::string, std::string, bool, std::string, bool> util::parse_arguments(int argc, char* argv[]) {
   CLI::App app{"Real-Debrid → Aria2 helper"};
 
+  std::string api_token{};
   std::string magnet{};
   bool links_flag = false;
   bool aria2_flag = false;
   std::string output_folder{};
 
+  app.add_option("-t,--token", api_token, "Set API token and save it locally");
   app.add_option("-m,--magnet", magnet, "Magnet link")->required();
   app.add_flag("-l,--links", links_flag, "Print unrestricted links");
   app.add_option("-o,--output", output_folder, "Specify path for output .txt file");
@@ -65,7 +88,7 @@ std::tuple<std::string, bool, std::string, bool> util::parse_arguments(int argc,
     std::exit(app.exit(e));
   }
 
-  return {magnet, links_flag, output_folder, aria2_flag};
+  return {api_token, magnet, links_flag, output_folder, aria2_flag};
 }
 
 util::TokenBucket::TokenBucket(size_t capacity, double refill_rate_per_sec)
@@ -89,9 +112,41 @@ void util::TokenBucket::refill() {
   }
 }
 
-bool util::create_text_file(const std::vector<std::string>& links, const std::string& file_path) {
-  // Open file in append mode
-  std::ofstream file(file_path, std::ios::app);
+util::File::File(std::string path) : path(std::move(path)), active(true) {}
+
+util::File::~File() {
+  if (active) {
+    if (std::remove(path.c_str()) != 0) {
+      std::cerr << "Temp file " << path << " could not be removed\n";
+    }
+  }
+}
+
+void util::File::keep_file() {
+  active = false;
+}
+
+std::string util::File::get_path() const {
+  return path;
+}
+
+void util::File::append_file_name_to_path(std::string& file_name, std::string& custom_path) {
+  if (custom_path.empty()) {
+    path += file_name + "_links.txt";
+  } else {
+    keep_file();
+    path = std::move(custom_path);
+    if (path.back() != '/') {
+      path += '/';
+    }
+    path += file_name + "_links.txt";
+    std::println("\nOutput file: {}", path);
+  }
+}
+
+bool util::File::create_text_file(const std::vector<std::string>& links) {
+  // Open file in truncate mode
+  std::ofstream file(path, std::ios::trunc);
 
   if (!file.is_open()) {
     std::cerr << "Error: Could not open file!\n";

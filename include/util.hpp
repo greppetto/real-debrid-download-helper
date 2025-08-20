@@ -31,21 +31,9 @@ inline void set_env_variable(const std::string& key, const std::string& value) {
 
 void load_env_file(const std::string& path);
 
-inline std::string get_rd_token() {
-#ifndef NDEBUG
-  // Load .env file only in debug/dev builds
-  load_env_file(".env");
-#endif
-  const char* raw_token = std::getenv("REAL_DEBRID_API_TOKEN");
-  if (raw_token == nullptr) {
-    std::cerr << "[ERROR] No API token found!\n";
-    return std::string{};
-    // throw std::runtime_error("REAL_DEBRID_API_TOKEN not set.");
-  }
-  return std::string{raw_token};
-}
+std::string get_rd_token(std::string& cli_token);
 
-std::tuple<std::string, bool, std::string, bool> parse_arguments(int argc, char* argv[]);
+std::tuple<std::string, std::string, bool, std::string, bool> parse_arguments(int argc, char* argv[]);
 
 // The following class helps with parallelization of link unrestriction
 class TokenBucket {
@@ -68,6 +56,25 @@ private:
   std::condition_variable cv;
 };
 
-bool create_text_file(const std::vector<std::string>& links, const std::string& file_path);
+class File {
+public:
+  explicit File(std::string path);
+
+  ~File();
+
+  void keep_file();
+
+  std::string get_path() const;
+
+  void append_file_name_to_path(std::string& file_name, std::string& custom_path);
+
+  bool create_text_file(const std::vector<std::string>& links);
+
+private:
+  std::string path;
+  bool active; // whether we delete it in destructor
+};
+
+bool remove_file(const std::string& file_path);
 
 } // namespace util
