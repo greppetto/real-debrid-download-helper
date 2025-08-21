@@ -51,7 +51,7 @@ std::string util::get_rd_token(std::string& cli_token) {
   if (!cli_token.empty()) {
     std::ofstream env_file(".env", std::ios::trunc);
     if (!env_file) {
-      throw std::runtime_error("Failed to write .env file");
+      throw std::runtime_error("Failed to write .env file.");
     }
     env_file << "REAL_DEBRID_API_TOKEN=" << cli_token << "\n";
     env_file.close();
@@ -63,7 +63,7 @@ std::string util::get_rd_token(std::string& cli_token) {
   if (const char* env_token = std::getenv("REAL_DEBRID_API_TOKEN")) {
     return std::string{env_token};
   } else {
-    fatal_exit("No API token found; Run with -t <token> or set REAL_DEBRID_API_TOKEN environment variable");
+    fatal_exit("No API token found; Run with -t <token> or set REAL_DEBRID_API_TOKEN environment variable.");
   }
 }
 
@@ -116,8 +116,8 @@ util::File::File(std::string path) : path(std::move(path)), active(true) {}
 
 util::File::~File() {
   if (active) {
-    if (std::remove(path.c_str()) != 0) {
-      std::cerr << "Temp file " << path << " could not be removed\n";
+    if (path != "/tmp/" && std::remove(path.c_str()) != 0) {
+      std::cerr << "Temp file " << path << " could not be removed.\n";
     }
   }
 }

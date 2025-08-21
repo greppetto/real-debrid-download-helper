@@ -35,7 +35,7 @@ std::optional<json> api::RealDebridClient::request_json(HTTPMethod method, const
   }
 
   if (response.status_code >= 400) {
-    std::println("HTTP error {}: {}", response.status_code, response.error.message);
+    std::cerr << "HTTP error " << response.status_code << ": " << response.error.message << std::endl;
     return std::nullopt;
   }
   if (response.text.empty()) {
@@ -46,11 +46,11 @@ std::optional<json> api::RealDebridClient::request_json(HTTPMethod method, const
   try {
     parsed_response = json::parse(response.text);
   } catch (const json::parse_error& e) {
-    std::println("JSON parse error: {}", e.what());
+    std::cerr << "JSON parse error: " << e.what() << std::endl;
     return std::nullopt;
   }
   if (parsed_response.contains("error")) {
-    std::println("API error: {}", parsed_response["error"].get<std::string>());
+    std::cerr << "API error: " << parsed_response["error"].get<std::string>() << std::endl;
     return std::nullopt;
   }
   return parsed_response;

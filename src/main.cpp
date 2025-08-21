@@ -10,11 +10,13 @@
 enum class AppState { ValidateMagnet, SendToAPI, WaitForConversion, DownloadFiles, Finished, Error };
 
 int main(int argc, char* argv[]) {
-  util::File links_file{"/tmp/"};
+  shutdown_handler::register_handler();
+
   constexpr std::string default_output_path{"/tmp/"};
-  std::string api_token{};
+  util::File links_file{default_output_path};
   AppState state = AppState::ValidateMagnet;
 
+  std::string api_token{};
   std::string magnet{};
   bool links_flag;
   std::string output_path{};
@@ -33,7 +35,7 @@ int main(int argc, char* argv[]) {
     switch (state) {
     case AppState::ValidateMagnet: {
       if (!util::validate_magnet_link(magnet)) {
-        std::println("Invalid magnet link. Try again!");
+        std::cerr << "Invalid magnet link." << std::endl;
         state = AppState::Error;
       } else {
         state = AppState::SendToAPI;
@@ -60,21 +62,6 @@ int main(int argc, char* argv[]) {
     case AppState::WaitForConversion: {
       auto& torrent = torrents.back();
       if (client.wait_for_status(torrent.id, "downloaded", torrent.size)) {
-        /**
-        custom_path_flag = true;
-        torrent.links = client.get_download_links(torrent.links);
-        if (output_path.empty()) {
-          output_path = std::move(default_output_path);
-          custom_path_flag = false;
-        }
-        if (custom_path_flag && output_path.back() != '/') {
-          output_path += '/';
-        }
-        output_path += torrent.name + "_links.txt";
-        if (custom_path_flag) {
-          std::println("\nOutput file: {}", output_path);
-        }
-        **/
         std::println("Caching complete! Obtaining unrestricted download links...");
         torrent.links = client.get_download_links(torrent.links);
         links_file.append_file_name_to_path(torrent.name, output_path);
@@ -83,7 +70,7 @@ int main(int argc, char* argv[]) {
           break;
         }
       }
-      std::cerr << "Timed out waiting for status: downloaded" << std::endl;
+      std::cerr << "Timed out waiting for status: downloaded." << std::endl;
       state = AppState::Error;
       break;
     }
@@ -114,14 +101,15 @@ int main(int argc, char* argv[]) {
     }
 
     if (shutdown_handler::shutdown_requested) {
-      std::println("\nProcess terminated successfully");
+      break;
     }
   }
   if (state == AppState::Finished) {
-    std::println("\nProcess executed successfully");
+    std::println("\nProcess executed successfully.");
     return 0;
   } else if (state == AppState::Error) {
-    std::println("Please try again");
+    std::println("Please try again.");
     return 1;
   }
+  std::println("\nProcess terminated gracefully and successfully.");
 }

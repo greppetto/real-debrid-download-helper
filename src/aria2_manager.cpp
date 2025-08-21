@@ -22,7 +22,7 @@ using json = nlohmann::json;
 
 void aria2::aria2Manager::launch_aria2(const std::string& links_file) {
   if (links_file.empty()) {
-    std::cerr << "[Aria2] No URLs provided\n";
+    std::cerr << "[Aria2] No URLs provided.\n";
   }
 
 #ifdef _WIN32
@@ -74,7 +74,7 @@ void aria2::aria2Manager::launch_aria2(const std::string& links_file) {
     // If execvp returns, there was an error
     _exit(1); // exec failed
   } else if (pid < 0) {
-    util::fatal_exit("[Aria2] Failed to fork process");
+    util::fatal_exit("[Aria2] Failed to fork process.");
   }
   // aria2c runs independently
 #endif
