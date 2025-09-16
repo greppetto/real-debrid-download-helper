@@ -11,12 +11,12 @@ namespace aria2 {
 
 class aria2Manager {
 public:
-  inline void start_aria2_daemon() {
+  inline void launch_aria2_daemon() {
     std::string cmd = "aria2c --enable-rpc --rpc-secret=nuclearlaunchcode --rpc-listen-all=true --daemon=true";
     std::system(cmd.c_str());
   }
 
-  void launch_aria2(const std::string& links_file);
+  void launch_aria2_handoff(const std::string& links_file);
 
   std::optional<std::string> rpc_add_download(const std::string& link);
 

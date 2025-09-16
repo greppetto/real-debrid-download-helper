@@ -87,7 +87,7 @@ int main(int argc, char* argv[]) {
       if (aria2_flag) {
         try {
           links_file.keep_file();
-          aria2_manager.launch_aria2(links_file.get_path());
+          aria2_manager.launch_aria2_handoff(links_file.get_path());
         } catch (const std::exception& e) {
           util::fatal_exit(e.what());
         }

@@ -20,7 +20,7 @@
 
 using json = nlohmann::json;
 
-void aria2::aria2Manager::launch_aria2(const std::string& links_file) {
+void aria2::aria2Manager::launch_aria2_handoff(const std::string& links_file) {
   if (links_file.empty()) {
     std::cerr << "[Aria2] No URLs provided.\n";
   }
