@@ -78,7 +78,7 @@ std::optional<api::Torrent> api::RealDebridClient::send_magnet_link(const std::s
             std::string torrent_name = parsed_json.contains("filename") && parsed_json["filename"].is_string()
                                            ? parsed_json["filename"].get<std::string>()
                                            : "Unknown filename";
-            auto size = parsed_json.contains("bytes") ? parsed_json["bytes"].get<int>() : 0;
+            auto size = parsed_json.contains("original_bytes") ? parsed_json["original_bytes"].get<int>() : 0;
             api::Torrent torrent{generated_id, torrent_name, std::vector<std::string>{files.begin(), files.end()},
                                  std::vector<std::string>{links.begin(), links.end()}, size};
             return torrent;
@@ -109,7 +109,8 @@ bool api::RealDebridClient::wait_for_status(const std::string& torrent_id, const
     if (shutdown_handler::shutdown_requested) {
       break;
     }
-    if (i % 10 == 0) {
+    // BUG: Waiting message is being printed twice
+    if (i % 60 == 0) {
       std::println("Waiting for torrent to be cached...");
     }
     if (auto parsed_response = request_json(HTTPMethod::GET, "/torrents/info/" + torrent_id)) {
