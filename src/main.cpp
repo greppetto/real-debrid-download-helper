@@ -81,12 +81,17 @@ int main(int argc, char* argv[]) {
     case AppState::DownloadFiles: {
       if (links_flag) {
         auto& torrent = torrents.back();
-        // assert(torrent.files.size() == torrent.links.size());
         // BUG: files vector and links vector can be of different sizes
-        std::println("\nDownload links:");
-        for (auto&& [name, link] : std::views::zip(torrent.files, torrent.links)) {
-          std::println("{}: {}", name, link);
+        std::println("\nDownload link(s):");
+        if (torrent.links.size() == 1) {
+          std::println("{}: {}", torrent.name, torrent.links[0]);
+        } else {
+          assert(torrent.files.size() == torrent.links.size());
+          for (auto&& [name, link] : std::views::zip(torrent.files, torrent.links)) {
+            std::println("{}: {}", name, link);
+          }
         }
+        state = AppState::Finished;
       }
       if (aria2_flag) {
         try {
@@ -101,6 +106,7 @@ int main(int argc, char* argv[]) {
               } else {
                 std::println("Failed to start download.");
                 state = AppState::Error;
+                break;
               }
             }
             state = AppState::MonitorDownloads;
@@ -116,14 +122,48 @@ int main(int argc, char* argv[]) {
     }
 
     case AppState::MonitorDownloads: {
-      for (size_t i = 0; i < 5; ++i) {
-        for (const auto& gid : download_gids) {
-          if (auto response = aria2_manager.rpc_get_status(gid)) {
-            std::println("{}", (*response).dump());
+      long total_size = 0;
+      std::this_thread::sleep_for(std::chrono::seconds(5));
+      for (const auto& gid : download_gids) {
+        if (auto parsed_response = aria2_manager.rpc_get_status(gid)) {
+          auto& parsed_json = (*parsed_response);
+          if (parsed_json.contains("result")) {
+            total_size += std::stol(parsed_json["result"]["totalLength"].get<std::string>());
           }
         }
-        std::this_thread::sleep_for(std::chrono::seconds(3));
       }
+      long current_size = 0;
+      float progress{0.0};
+      size_t bar_width = 70;
+      std::println("Number of files to download: {}", download_gids.size());
+      while (progress < 1.00) {
+        if (shutdown_handler::shutdown_requested) {
+          break;
+        }
+        for (const auto& gid : download_gids) {
+          if (auto parsed_response = aria2_manager.rpc_get_status(gid)) {
+            auto& parsed_json = (*parsed_response);
+            if (parsed_json.contains("result")) {
+              current_size += std::stol(parsed_json["result"]["completedLength"].get<std::string>());
+            }
+          }
+        }
+        std::cout << "[";
+        float position = bar_width * progress;
+        for (float i = 0; i < bar_width; ++i) {
+          if (i < position) {
+            std::cout << "=";
+          } else {
+            std::cout << " ";
+          }
+        }
+        std::cout << "] " << static_cast<int>(progress * 100.0) << "%\r";
+        std::cout.flush();
+        progress = static_cast<float>(current_size) / total_size;
+        current_size = 0;
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+      }
+      std::println("Download complete!");
       state = AppState::Finished;
       break;
     }
