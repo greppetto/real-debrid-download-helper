@@ -60,7 +60,7 @@ std::optional<api::Torrent> api::RealDebridClient::send_magnet_link(const std::s
   std::println("Sending magnet link to Real-Debrid for caching...");
   if (auto parsed_response = request_json(HTTPMethod::POST, "/torrents/addMagnet", cpr::Payload{{"magnet", magnet}})) {
     std::string generated_id = (*parsed_response)["id"].get<std::string>();
-    std::println("Successfully done! Generated ID: {}", generated_id);
+    std::println("Successfully sent! Generated ID: {}", generated_id);
     if (auto parsed_response = request_json(HTTPMethod::GET, "/torrents/info/" + generated_id)) {
       auto& parsed_json = (*parsed_response);
       if (parsed_json.contains("status") && parsed_json["status"].is_string() && wait_for_status(generated_id, "waiting_files_selection")) {

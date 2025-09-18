@@ -161,3 +161,20 @@ bool util::File::create_text_file(const std::vector<std::string>& links) {
   file.close();
   return true;
 }
+
+void util::print_progress_bar(const std::vector<util::FileDownloadProgress>& files, size_t bar_width) {
+  for (const auto& file : files) {
+    size_t current_position = static_cast<size_t>(bar_width * file.progress);
+    std::print("{} [", file.name);
+    for (size_t i = 0; i < bar_width; ++i) {
+      if (i < current_position) {
+        std::print("=");
+      } else if (i == current_position) {
+        std::print(">");
+      } else {
+        std::print(" ");
+      }
+    }
+    std::println("] {}%", static_cast<size_t>(file.progress * 100.0));
+  }
+}

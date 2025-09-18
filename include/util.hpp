@@ -77,4 +77,11 @@ private:
 
 bool remove_file(const std::string& file_path);
 
+struct FileDownloadProgress {
+  std::string name;
+  float progress{0.0f};
+};
+
+void print_progress_bar(const std::vector<FileDownloadProgress>& files, size_t bar_width = 40);
+
 } // namespace util
