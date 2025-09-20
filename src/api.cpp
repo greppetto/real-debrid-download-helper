@@ -109,9 +109,12 @@ bool api::RealDebridClient::wait_for_status(const std::string& torrent_id, const
     if (shutdown_handler::shutdown_requested) {
       break;
     }
-    // BUG: Waiting message is being printed twice
     if (i % 60 == 0) {
-      std::println("Waiting for torrent to be cached...");
+      if (i == 0) {
+        std::println("Waiting for status: {}...", desired_status);
+      } else {
+        std::println("Still waiting for status: {}...", desired_status);
+      }
     }
     if (auto parsed_response = request_json(HTTPMethod::GET, "/torrents/info/" + torrent_id)) {
       auto& parsed_json = (*parsed_response);
@@ -148,6 +151,7 @@ std::vector<std::string> api::RealDebridClient::get_download_links(const std::ve
 
   std::vector<std::future<std::optional<std::string>>> futures;
 
+  // BUG: No wait time for server to generate download links leading to program freezing
   for (const auto& link : links) {
     futures.push_back(std::async(std::launch::async, [&] {
       bucket.consume();
@@ -169,6 +173,10 @@ std::vector<std::string> api::RealDebridClient::get_download_links(const std::ve
       }
       return std::optional<std::string>{};
     }));
+
+    if (shutdown_handler::shutdown_requested) {
+      break;
+    }
   }
 
   for (auto& future : futures) {

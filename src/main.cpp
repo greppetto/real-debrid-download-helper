@@ -167,7 +167,7 @@ int main(int argc, char* argv[]) {
           }
         }
         if (completion_flag) {
-          std::println("Download complete!");
+          std::println("Download(s) complete!");
           break;
         }
       }
