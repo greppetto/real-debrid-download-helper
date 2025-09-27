@@ -149,3 +149,18 @@ std::optional<json> aria2::aria2Manager::rpc_get_status(const std::string& gid) 
   }
   return std::nullopt;
 }
+
+bool aria2::aria2Manager::rpc_remove_download(const std::string& gid) {
+  json payload = {{"jsonrpc", "2.0"}, {"id", "JID"}, {"method", "aria2.remove"}, {"params", {"token:nuclearlaunchcode", gid}}};
+
+  cpr::Response response =
+      cpr::Post(cpr::Url{"http://localhost:6800/jsonrpc"}, cpr::Body{payload.dump()}, cpr::Header{{"Content-Type", "application/json"}});
+
+  if (response.status_code == 200) {
+    auto parsed_json = json::parse(response.text);
+    if (parsed_json.get<std::string>() == gid) {
+      return true;
+    }
+  }
+  return false;
+}

@@ -126,10 +126,6 @@ void util::File::keep_file() {
   active = false;
 }
 
-std::string util::File::get_path() const {
-  return path;
-}
-
 void util::File::append_file_name_to_path(std::string& file_name, std::string& custom_path) {
   if (custom_path.empty()) {
     path += file_name + "_links.txt";
@@ -161,6 +157,10 @@ bool util::File::create_text_file(const std::vector<std::string>& links) {
   file.close();
   return true;
 }
+
+util::FileDownloadProgress::FileDownloadProgress(std::string gid, std::string name) : gid(std::move(gid)), name(std::move(name)) {}
+
+util::FileDownloadProgress::~FileDownloadProgress() {}
 
 void util::print_progress_bar(const std::vector<util::FileDownloadProgress>& files, size_t bar_width) {
   for (const auto& file : files) {

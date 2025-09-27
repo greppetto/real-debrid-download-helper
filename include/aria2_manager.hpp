@@ -21,6 +21,8 @@ public:
 
   std::optional<json> rpc_get_status(const std::string& gid);
 
+  bool rpc_remove_download(const std::string& gid);
+
   void shutdown();
 };
 

@@ -3,6 +3,7 @@
 #include "shutdown_handler.hpp"
 #include "util.hpp"
 #include <cassert>
+#include <iostream>
 #include <optional>
 #include <print>
 #include <ranges>

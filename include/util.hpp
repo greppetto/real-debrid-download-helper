@@ -64,7 +64,9 @@ public:
 
   void keep_file();
 
-  std::string get_path() const;
+  std::string get_path() const {
+    return path;
+  }
 
   void append_file_name_to_path(std::string& file_name, std::string& custom_path);
 
@@ -77,10 +79,38 @@ private:
 
 bool remove_file(const std::string& file_path);
 
-struct FileDownloadProgress {
-  std::string name;
+// struct FileDownloadProgress {
+//   std::string name;
+//   float progress{0.0f};
+// };
+
+class FileDownloadProgress {
+public:
+  explicit FileDownloadProgress(std::string gid, std::string name);
+
+  ~FileDownloadProgress();
+
+  std::string get_name() const {
+    return name;
+  }
+
+  float get_progress() const {
+    return progress;
+  }
+
+  std::string get_gid() const {
+    return gid;
+  }
+
+  void set_progress(float progress) {
+    this->progress = progress;
+  }
+
+private:
+  const std::string gid;
+  const std::string name;
   float progress{0.0f};
-};
+}
 
 void print_progress_bar(const std::vector<FileDownloadProgress>& files, size_t bar_width = 40);
 
