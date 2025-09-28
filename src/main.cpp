@@ -3,6 +3,7 @@
 #include "shutdown_handler.hpp"
 #include "util.hpp"
 #include <cassert>
+#include <iostream>
 #include <optional>
 #include <print>
 #include <ranges>
@@ -29,12 +30,12 @@ int main(int argc, char* argv[]) {
   api::RealDebridClient client{api_token};
 
   std::vector<api::Torrent> torrents;
-  aria2::aria2Manager aria2_manager;
 
-  std::vector<std::string> download_gids;
+  std::vector<util::FileDownloadProgress> files;
+  // std::vector<std::string> download_gids;
 
   // Process loop
-  while (state != AppState::Finished && state != AppState::Error) {
+  while (!shutdown_handler::shutdown_requested && state != AppState::Finished && state != AppState::Error) {
     switch (state) {
     case AppState::ValidateMagnet: {
       if (!util::validate_magnet_link(magnet)) {
@@ -81,89 +82,67 @@ int main(int argc, char* argv[]) {
     case AppState::DownloadFiles: {
       if (links_flag) {
         auto& torrent = torrents.back();
-        // BUG: files vector and links vector can be of different sizes
         std::println("\nDownload link(s):");
-        if (torrent.links.size() == 1) {
-          std::println("{}: {}", torrent.name, torrent.links[0]);
-        } else {
-          assert(torrent.files.size() == torrent.links.size());
-          for (auto&& [name, link] : std::views::zip(torrent.files, torrent.links)) {
-            std::println("{}: {}", name, link);
-          }
+        for (auto& link : torrent.links) {
+          std::println("{}", link);
         }
         state = AppState::Finished;
       }
       if (aria2_flag) {
-        try {
-          // links_file.keep_file();
-          // aria2_manager.launch_aria2_handoff(links_file.get_path());
-          if (aria2_manager.launch_aria2_daemon()) {
-            std::println("Successfully started aria2 daemon.");
+        if (aria2::launch_aria2_daemon()) {
+          try {
+            std::println("Successfully started aria2 daemon.\n");
             auto& torrent = torrents.back();
-            for (const auto& link : torrent.links) {
-              if (auto gid = aria2_manager.rpc_add_download(link)) {
-                download_gids.push_back(std::move(*gid));
-              } else {
-                std::println("Failed to start download.");
-                state = AppState::Error;
-                break;
+            if (torrent.links.size() == 1) {
+              files.emplace_back(util::FileDownloadProgress(torrent.links.back(), torrent.name));
+            } else {
+              assert(torrent.links.size() == torrent.files.size());
+              for (auto&& [link, file] : std::views::zip(torrent.links, torrent.files)) {
+                files.emplace_back(util::FileDownloadProgress(link, file));
               }
             }
-            state = AppState::MonitorDownloads;
-          } else {
-            std::cerr << "Timed out waiting for aria2 daemon to start." << std::endl;
+            if (state != AppState::Error) {
+              state = AppState::MonitorDownloads;
+            }
+          } catch (const std::exception& e) {
+            std::println("Skipping downloads...");
             state = AppState::Error;
           }
-        } catch (const std::exception& e) {
-          util::fatal_exit(e.what());
+        } else {
+          std::cerr << "Timed out waiting for aria2 daemon to start." << std::endl;
+          state = AppState::Error;
         }
       }
       break;
     }
 
     case AppState::MonitorDownloads: {
-      long total_size = 0;
-      std::this_thread::sleep_for(std::chrono::seconds(5));
-      for (const auto& gid : download_gids) {
-        if (auto parsed_response = aria2_manager.rpc_get_status(gid)) {
-          auto& parsed_json = (*parsed_response);
-          if (parsed_json.contains("result")) {
-            total_size += std::stol(parsed_json["result"]["totalLength"].get<std::string>());
-          }
-        }
-      }
-      long current_size = 0;
-      float progress{0.0};
-      size_t bar_width = 70;
-      std::println("Number of files to download: {}", download_gids.size());
-      while (progress < 1.00) {
-        if (shutdown_handler::shutdown_requested) {
-          break;
-        }
-        for (const auto& gid : download_gids) {
-          if (auto parsed_response = aria2_manager.rpc_get_status(gid)) {
+      while (!shutdown_handler::shutdown_requested) {
+        for (auto& file : files) {
+          if (auto parsed_response = aria2::rpc_get_status(file.get_gid())) {
             auto& parsed_json = (*parsed_response);
             if (parsed_json.contains("result")) {
-              current_size += std::stol(parsed_json["result"]["completedLength"].get<std::string>());
+              if (const auto& total_length = std::stol(parsed_json["result"]["totalLength"].get<std::string>()); total_length != 0) {
+                file.set_progress(std::stof(parsed_json["result"]["completedLength"].get<std::string>()) / total_length);
+                if (file.get_progress() >= 1.0f) {
+                  file.mark_completed();
+                }
+              }
             }
           }
         }
-        std::cout << "[";
-        float position = bar_width * progress;
-        for (float i = 0; i < bar_width; ++i) {
-          if (i < position) {
-            std::cout << "=";
-          } else {
-            std::cout << " ";
-          }
+
+        std::print("\033[{}A", files.size());
+        util::print_progress_bar(files);
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+
+        if (static_cast<long>(files.size()) ==
+            std::ranges::count_if(files, [](const util::FileDownloadProgress& file) { return file.get_completion_status(); })) {
+          std::println("Download(s) complete!");
+          break;
         }
-        std::cout << "] " << static_cast<int>(progress * 100.0) << "%\r";
-        std::cout.flush();
-        progress = static_cast<float>(current_size) / total_size;
-        current_size = 0;
-        std::this_thread::sleep_for(std::chrono::seconds(1));
       }
-      std::println("Download complete!");
+
       state = AppState::Finished;
       break;
     }
@@ -171,17 +150,15 @@ int main(int argc, char* argv[]) {
     default:
       break;
     }
-
-    if (shutdown_handler::shutdown_requested) {
-      break;
-    }
   }
-  if (state == AppState::Finished) {
+  if (shutdown_handler::shutdown_requested) {
+    std::println("\nProcess terminated gracefully and successfully.");
+    return 1;
+  } else if (state == AppState::Finished) {
     std::println("\nProcess executed successfully.");
     return 0;
   } else if (state == AppState::Error) {
     std::println("Please try again.");
     return 1;
   }
-  std::println("\nProcess terminated gracefully and successfully.");
 }

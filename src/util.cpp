@@ -1,5 +1,7 @@
 #include "util.hpp"
 #include "CLI11.hpp"
+#include "aria2_manager.hpp"
+#include "shutdown_handler.hpp"
 #include <chrono>
 #include <condition_variable>
 #include <cstdlib>
@@ -101,6 +103,7 @@ void util::TokenBucket::consume() {
   --tokens;
 }
 
+// BUG: Refill doesn't seem to be working; temporary workaround implemented by increasing initial available tokens
 void util::TokenBucket::refill() {
   auto time_now = std::chrono::steady_clock::now();
   double seconds_passed = std::chrono::duration<double>(time_now - last_refill).count();
@@ -124,10 +127,6 @@ util::File::~File() {
 
 void util::File::keep_file() {
   active = false;
-}
-
-std::string util::File::get_path() const {
-  return path;
 }
 
 void util::File::append_file_name_to_path(std::string& file_name, std::string& custom_path) {
@@ -160,4 +159,40 @@ bool util::File::create_text_file(const std::vector<std::string>& links) {
 
   file.close();
   return true;
+}
+
+util::FileDownloadProgress::FileDownloadProgress(const std::string& link, const std::string& name)
+    : gid{}, name(std::move(name)), progress{0.0f}, completion_status(false) {
+  gid = aria2::rpc_add_download(link);
+  if (!gid) {
+    util::fatal_error("[aria2] Could not start download.\n");
+  }
+}
+
+util::FileDownloadProgress::~FileDownloadProgress() {
+  if (shutdown_handler::shutdown_requested && !completion_status) {
+    try {
+      aria2::rpc_remove_download(gid.value());
+      // std::println("[aria2] Successfully stopped download {}.", name);
+    } catch (const std::exception& e) {
+      std::cerr << "[aria2] Could not remove the ongoing download: " << name << "\n";
+    }
+  }
+}
+
+void util::print_progress_bar(const std::vector<util::FileDownloadProgress>& files, size_t bar_width) {
+  for (const auto& file : files) {
+    size_t current_position = static_cast<size_t>(bar_width * file.get_progress());
+    std::print("{} [", file.get_name());
+    for (size_t i = 0; i < bar_width; ++i) {
+      if (i < current_position) {
+        std::print("=");
+      } else if (i == current_position) {
+        std::print(">");
+      } else {
+        std::print(" ");
+      }
+    }
+    std::println("] {}%", static_cast<size_t>(file.get_progress() * 100.0));
+  }
 }
