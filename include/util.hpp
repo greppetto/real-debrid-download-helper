@@ -86,31 +86,40 @@ bool remove_file(const std::string& file_path);
 
 class FileDownloadProgress {
 public:
-  explicit FileDownloadProgress(std::string gid, std::string name);
+  explicit FileDownloadProgress(const std::string& link, const std::string& name);
 
   ~FileDownloadProgress();
 
-  std::string get_name() const {
+  const std::string& get_name() const noexcept {
     return name;
   }
 
-  float get_progress() const {
+  float get_progress() const noexcept {
     return progress;
   }
 
-  std::string get_gid() const {
-    return gid;
+  const std::string& get_gid() const noexcept {
+    return gid.value();
+  }
+
+  bool get_completion_status() const noexcept {
+    return completion_status;
   }
 
   void set_progress(float progress) {
     this->progress = progress;
   }
 
+  void mark_completed() noexcept {
+    completion_status = true;
+  }
+
 private:
-  const std::string gid;
-  const std::string name;
-  float progress{0.0f};
-}
+  std::optional<std::string> gid;
+  std::string name;
+  float progress;
+  bool completion_status;
+};
 
 void print_progress_bar(const std::vector<FileDownloadProgress>& files, size_t bar_width = 40);
 

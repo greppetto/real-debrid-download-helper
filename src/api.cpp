@@ -147,7 +147,7 @@ std::vector<std::string> api::RealDebridClient::get_download_links(const std::ve
   unrestricted_download_links.reserve(links.size());
 
   // API restricted to 250 requests per minute
-  util::TokenBucket bucket(4, 4.0);
+  util::TokenBucket bucket(50, 1.0);
 
   std::vector<std::future<std::optional<std::string>>> futures;
 
@@ -162,7 +162,7 @@ std::vector<std::string> api::RealDebridClient::get_download_links(const std::ve
           std::string download_link = parsed_json["download"];
           {
             std::scoped_lock lock(print_mutex);
-            // std::println("Unrestricted counterpart: {}", download_link);
+            std::println("Unrestricted counterpart: {}", download_link);
           }
           return std::optional<std::string>{std::move(download_link)};
         } else {

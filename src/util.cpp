@@ -1,5 +1,7 @@
 #include "util.hpp"
 #include "CLI11.hpp"
+#include "aria2_manager.hpp"
+#include "shutdown_handler.hpp"
 #include <chrono>
 #include <condition_variable>
 #include <cstdlib>
@@ -158,14 +160,29 @@ bool util::File::create_text_file(const std::vector<std::string>& links) {
   return true;
 }
 
-util::FileDownloadProgress::FileDownloadProgress(std::string gid, std::string name) : gid(std::move(gid)), name(std::move(name)) {}
+util::FileDownloadProgress::FileDownloadProgress(const std::string& link, const std::string& name)
+    : gid{}, name(std::move(name)), progress{0.0f}, completion_status(false) {
+  gid = aria2::rpc_add_download(link);
+  if (!gid) {
+    util::fatal_error("[aria2] Could not start download.\n");
+  }
+}
 
-util::FileDownloadProgress::~FileDownloadProgress() {}
+util::FileDownloadProgress::~FileDownloadProgress() {
+  if (shutdown_handler::shutdown_requested && !completion_status) {
+    try {
+      aria2::rpc_remove_download(gid.value());
+      // std::println("[aria2] Successfully stopped download {}.", name);
+    } catch (const std::exception& e) {
+      std::cerr << "[aria2] Could not remove the ongoing download: " << name << "\n";
+    }
+  }
+}
 
 void util::print_progress_bar(const std::vector<util::FileDownloadProgress>& files, size_t bar_width) {
   for (const auto& file : files) {
-    size_t current_position = static_cast<size_t>(bar_width * file.progress);
-    std::print("{} [", file.name);
+    size_t current_position = static_cast<size_t>(bar_width * file.get_progress());
+    std::print("{} [", file.get_name());
     for (size_t i = 0; i < bar_width; ++i) {
       if (i < current_position) {
         std::print("=");
@@ -175,6 +192,6 @@ void util::print_progress_bar(const std::vector<util::FileDownloadProgress>& fil
         std::print(" ");
       }
     }
-    std::println("] {}%", static_cast<size_t>(file.progress * 100.0));
+    std::println("] {}%", static_cast<size_t>(file.get_progress() * 100.0));
   }
 }

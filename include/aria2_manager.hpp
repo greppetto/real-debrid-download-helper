@@ -9,21 +9,18 @@ using json = nlohmann::json;
 
 namespace aria2 {
 
-class aria2Manager {
-public:
-  void launch_aria2_handoff(const std::string& links_file);
+void launch_aria2_handoff(const std::string& links_file);
 
-  bool is_rpc_running();
+bool is_rpc_running();
 
-  bool launch_aria2_daemon();
+bool launch_aria2_daemon();
 
-  std::optional<std::string> rpc_add_download(const std::string& link);
+std::optional<std::string> rpc_add_download(const std::string& link);
 
-  std::optional<json> rpc_get_status(const std::string& gid);
+std::optional<json> rpc_get_status(const std::string& gid);
 
-  bool rpc_remove_download(const std::string& gid);
+bool rpc_remove_download(const std::string& gid);
 
-  void shutdown();
-};
+void shutdown();
 
 } // namespace aria2
