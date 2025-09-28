@@ -73,7 +73,8 @@ std::optional<api::Torrent> api::RealDebridClient::send_magnet_link(const std::s
         if (auto parsed_response = request_json(HTTPMethod::GET, "/torrents/info/" + generated_id)) {
           auto& parsed_json = (*parsed_response);
           if (parsed_json.contains("files") && parsed_json.contains("links")) {
-            auto files = parsed_json["files"] | std::views::transform([](const json& file) { return file["path"].get<std::string>(); });
+            auto files = parsed_json["files"] | std::views::filter([](const json& file) { return file["selected"].get<int>() == 1; }) |
+                         std::views::transform([](const json& file) { return file["path"].get<std::string>(); });
             auto links = parsed_json["links"] | std::views::transform([](const json& link) { return link.get<std::string>(); });
             std::string torrent_name = parsed_json.contains("filename") && parsed_json["filename"].is_string()
                                            ? parsed_json["filename"].get<std::string>()
@@ -162,7 +163,7 @@ std::vector<std::string> api::RealDebridClient::get_download_links(const std::ve
           std::string download_link = parsed_json["download"];
           {
             std::scoped_lock lock(print_mutex);
-            std::println("Unrestricted counterpart: {}", download_link);
+            // std::println("Unrestricted counterpart: {}", download_link);
           }
           return std::optional<std::string>{std::move(download_link)};
         } else {

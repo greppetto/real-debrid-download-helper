@@ -103,6 +103,7 @@ void util::TokenBucket::consume() {
   --tokens;
 }
 
+// BUG: Refill doesn't seem to be working; temporary workaround implemented by increasing initial available tokens
 void util::TokenBucket::refill() {
   auto time_now = std::chrono::steady_clock::now();
   double seconds_passed = std::chrono::duration<double>(time_now - last_refill).count();

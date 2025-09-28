@@ -82,21 +82,9 @@ int main(int argc, char* argv[]) {
     case AppState::DownloadFiles: {
       if (links_flag) {
         auto& torrent = torrents.back();
-        // BUG: files vector and links vector can be of different sizes
         std::println("\nDownload link(s):");
-        if (torrent.links.size() == 1) {
-          std::println("{}: {}\n", torrent.name, torrent.links[0]);
-        } else {
-          for (auto& file : torrent.files) {
-            std::println("File: {}", file);
-          }
-          for (auto& link : torrent.links) {
-            std::println("Link: {}", link);
-          }
-          assert(torrent.files.size() == torrent.links.size());
-          for (auto&& [name, link] : std::views::zip(torrent.files, torrent.links)) {
-            std::println("{}: {}\n", name, link);
-          }
+        for (auto& link : torrent.links) {
+          std::println("{}", link);
         }
         state = AppState::Finished;
       }
