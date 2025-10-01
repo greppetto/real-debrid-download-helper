@@ -32,7 +32,6 @@ int main(int argc, char* argv[]) {
   std::vector<api::Torrent> torrents;
 
   std::vector<util::FileDownloadProgress> files;
-  // std::vector<std::string> download_gids;
 
   // Process loop
   while (!shutdown_handler::shutdown_requested && state != AppState::Finished && state != AppState::Error) {
