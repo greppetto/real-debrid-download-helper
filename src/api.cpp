@@ -60,7 +60,7 @@ std::optional<api::Torrent> api::RealDebridClient::send_magnet_link(const std::s
   std::println("Sending magnet link to Real-Debrid for caching...");
   if (auto parsed_response = request_json(HTTPMethod::POST, "/torrents/addMagnet", cpr::Payload{{"magnet", magnet}})) {
     std::string generated_id = (*parsed_response)["id"].get<std::string>();
-    std::println("Successfully done! Generated ID: {}", generated_id);
+    std::println("Successfully sent! Generated ID: {}", generated_id);
     if (auto parsed_response = request_json(HTTPMethod::GET, "/torrents/info/" + generated_id)) {
       auto& parsed_json = (*parsed_response);
       if (parsed_json.contains("status") && parsed_json["status"].is_string() && wait_for_status(generated_id, "waiting_files_selection")) {
@@ -73,12 +73,13 @@ std::optional<api::Torrent> api::RealDebridClient::send_magnet_link(const std::s
         if (auto parsed_response = request_json(HTTPMethod::GET, "/torrents/info/" + generated_id)) {
           auto& parsed_json = (*parsed_response);
           if (parsed_json.contains("files") && parsed_json.contains("links")) {
-            auto files = parsed_json["files"] | std::views::transform([](const json& file) { return file["path"].get<std::string>(); });
+            auto files = parsed_json["files"] | std::views::filter([](const json& file) { return file["selected"].get<int>() == 1; }) |
+                         std::views::transform([](const json& file) { return file["path"].get<std::string>(); });
             auto links = parsed_json["links"] | std::views::transform([](const json& link) { return link.get<std::string>(); });
             std::string torrent_name = parsed_json.contains("filename") && parsed_json["filename"].is_string()
                                            ? parsed_json["filename"].get<std::string>()
                                            : "Unknown filename";
-            auto size = parsed_json.contains("bytes") ? parsed_json["bytes"].get<int>() : 0;
+            auto size = parsed_json.contains("original_bytes") ? parsed_json["original_bytes"].get<int>() : 0;
             api::Torrent torrent{generated_id, torrent_name, std::vector<std::string>{files.begin(), files.end()},
                                  std::vector<std::string>{links.begin(), links.end()}, size};
             return torrent;
@@ -109,8 +110,12 @@ bool api::RealDebridClient::wait_for_status(const std::string& torrent_id, const
     if (shutdown_handler::shutdown_requested) {
       break;
     }
-    if (i % 10 == 0) {
-      std::println("Waiting for torrent to be cached...");
+    if (i % 60 == 0) {
+      if (i == 0) {
+        std::println("Waiting for status: {}...", desired_status);
+      } else {
+        std::println("Still waiting for status: {}...", desired_status);
+      }
     }
     if (auto parsed_response = request_json(HTTPMethod::GET, "/torrents/info/" + torrent_id)) {
       auto& parsed_json = (*parsed_response);
@@ -143,10 +148,11 @@ std::vector<std::string> api::RealDebridClient::get_download_links(const std::ve
   unrestricted_download_links.reserve(links.size());
 
   // API restricted to 250 requests per minute
-  util::TokenBucket bucket(4, 4.0);
+  util::TokenBucket bucket(50, 1.0);
 
   std::vector<std::future<std::optional<std::string>>> futures;
 
+  // BUG: No wait time for server to generate download links leading to program freezing
   for (const auto& link : links) {
     futures.push_back(std::async(std::launch::async, [&] {
       bucket.consume();
@@ -168,6 +174,10 @@ std::vector<std::string> api::RealDebridClient::get_download_links(const std::ve
       }
       return std::optional<std::string>{};
     }));
+
+    if (shutdown_handler::shutdown_requested) {
+      break;
+    }
   }
 
   for (auto& future : futures) {

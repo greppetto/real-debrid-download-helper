@@ -9,20 +9,18 @@ using json = nlohmann::json;
 
 namespace aria2 {
 
-class aria2Manager {
-public:
-  inline void launch_aria2_daemon() {
-    std::string cmd = "aria2c --enable-rpc --rpc-secret=nuclearlaunchcode --rpc-listen-all=true --daemon=true";
-    std::system(cmd.c_str());
-  }
+void launch_aria2_handoff(const std::string& links_file);
 
-  void launch_aria2_handoff(const std::string& links_file);
+bool is_rpc_running();
 
-  std::optional<std::string> rpc_add_download(const std::string& link);
+bool launch_aria2_daemon();
 
-  std::optional<json> rpc_get_status(const std::string& gid);
+std::optional<std::string> rpc_add_download(const std::string& link);
 
-  void shutdown();
-};
+std::optional<json> rpc_get_status(const std::string& gid);
+
+bool rpc_remove_download(const std::string& gid);
+
+void shutdown();
 
 } // namespace aria2

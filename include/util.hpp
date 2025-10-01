@@ -64,7 +64,9 @@ public:
 
   void keep_file();
 
-  std::string get_path() const;
+  std::string get_path() const {
+    return path;
+  }
 
   void append_file_name_to_path(std::string& file_name, std::string& custom_path);
 
@@ -76,5 +78,49 @@ private:
 };
 
 bool remove_file(const std::string& file_path);
+
+// struct FileDownloadProgress {
+//   std::string name;
+//   float progress{0.0f};
+// };
+
+class FileDownloadProgress {
+public:
+  explicit FileDownloadProgress(const std::string& link, const std::string& name);
+
+  ~FileDownloadProgress();
+
+  const std::string& get_name() const noexcept {
+    return name;
+  }
+
+  float get_progress() const noexcept {
+    return progress;
+  }
+
+  const std::string& get_gid() const noexcept {
+    return gid.value();
+  }
+
+  bool get_completion_status() const noexcept {
+    return completion_status;
+  }
+
+  void set_progress(float progress) {
+    this->progress = progress;
+  }
+
+  void mark_completed() noexcept {
+    completion_status = true;
+  }
+
+private:
+  std::optional<std::string> gid;
+  std::string name;
+  float progress;
+  bool completion_status;
+};
+
+void print_progress_bar(const std::vector<FileDownloadProgress>& files, size_t bar_width = 40);
 
 } // namespace util

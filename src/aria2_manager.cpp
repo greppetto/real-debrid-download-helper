@@ -1,5 +1,6 @@
 #include "aria2_manager.hpp"
 #include "util.hpp"
+#include <chrono>
 #include <cpr/cpr.h>
 #include <iostream>
 #include <nlohmann/json.hpp>
@@ -20,9 +21,9 @@
 
 using json = nlohmann::json;
 
-void aria2::aria2Manager::launch_aria2_handoff(const std::string& links_file) {
+void aria2::launch_aria2_handoff(const std::string& links_file) {
   if (links_file.empty()) {
-    std::cerr << "[Aria2] No URLs provided.\n";
+    std::cerr << "[aria2] No URLs provided.\n";
   }
 
 #ifdef _WIN32
@@ -49,7 +50,7 @@ void aria2::aria2Manager::launch_aria2_handoff(const std::string& links_file) {
                      &si,                 // Pointer to STARTUPINFO structure
                      &pi)                 // Pointer to PROCESS_INFORMATION structure) 
   {
-    util::fatal_exit("[Aria2] Failed to launch process. Error: " + static_cast<std::string>(GetLastError()) + "\n");
+    util::fatal_exit("[aria2] Failed to launch process. Error: " + static_cast<std::string>(GetLastError()) + "\n");
     return;
   }
 
@@ -74,13 +75,50 @@ void aria2::aria2Manager::launch_aria2_handoff(const std::string& links_file) {
     // If execvp returns, there was an error
     _exit(1); // exec failed
   } else if (pid < 0) {
-    util::fatal_exit("[Aria2] Failed to fork process.");
+    util::fatal_exit("[aria2] Failed to fork process.");
   }
   // aria2c runs independently
 #endif
 }
 
-std::optional<std::string> aria2::aria2Manager::rpc_add_download(const std::string& link) {
+bool aria2::is_rpc_running() {
+  try {
+    json payload = {{"jsonrpc", "2.0"}, {"id", "ping"}, {"method", "aria2.getVersion"}, {"params", {"token:nuclearlaunchcode"}}};
+
+    cpr::Response response =
+        cpr::Post(cpr::Url{"http://localhost:6800/jsonrpc"}, cpr::Body{payload.dump()}, cpr::Header{{"Content-Type", "application/json"}});
+
+    if (response.status_code == 200) {
+      auto parsed_json = json::parse(response.text);
+      return parsed_json.contains("result"); // valid RPC reply
+    }
+  } catch (const std::exception& e) {
+    std::cerr << "[aria2] RPC check failed: " << e.what() << "\n";
+  }
+  return false;
+}
+
+bool aria2::launch_aria2_daemon() {
+  std::string cmd = "aria2c --enable-rpc --rpc-secret=nuclearlaunchcode --rpc-listen-all=true --daemon=true";
+
+  if (is_rpc_running()) {
+    return true;
+  }
+
+  std::system(cmd.c_str());
+
+  // Retry a few times until RPC is responsive
+  for (size_t i = 0; i < 5; ++i) {
+    std::this_thread::sleep_for(std::chrono::seconds(2));
+    if (is_rpc_running()) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+std::optional<std::string> aria2::rpc_add_download(const std::string& link) {
   json payload = {{"jsonrpc", "2.0"}, {"id", "JID"}, {"method", "aria2.addUri"}, {"params", {"token:nuclearlaunchcode", json::array({link})}}};
 
   cpr::Response response =
@@ -89,13 +127,14 @@ std::optional<std::string> aria2::aria2Manager::rpc_add_download(const std::stri
   if (response.status_code == 200) {
     auto parsed_json = json::parse(response.text);
     if (parsed_json.contains("result")) {
+      std::println("GID: {}", parsed_json["result"].get<std::string>());
       return parsed_json["result"].get<std::string>();
     }
   }
   return std::nullopt;
 }
 
-std::optional<json> aria2::aria2Manager::rpc_get_status(const std::string& gid) {
+std::optional<json> aria2::rpc_get_status(const std::string& gid) {
   json payload = {
       {"jsonrpc", "2.0"},
       {"id", "JID"},
@@ -110,4 +149,21 @@ std::optional<json> aria2::aria2Manager::rpc_get_status(const std::string& gid) 
     return parsed_json;
   }
   return std::nullopt;
+}
+
+bool aria2::rpc_remove_download(const std::string& gid) {
+  json payload = {{"jsonrpc", "2.0"}, {"id", "JID"}, {"method", "aria2.remove"}, {"params", {"token:nuclearlaunchcode", gid}}};
+
+  cpr::Response response =
+      cpr::Post(cpr::Url{"http://localhost:6800/jsonrpc"}, cpr::Body{payload.dump()}, cpr::Header{{"Content-Type", "application/json"}});
+
+  if (response.status_code == 200) {
+    auto parsed_json = json::parse(response.text);
+    if (parsed_json.contains("result")) {
+      if (parsed_json["result"].get<std::string>() == gid) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
