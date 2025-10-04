@@ -180,10 +180,20 @@ util::FileDownloadProgress::~FileDownloadProgress() {
   }
 }
 
+// TODO: Ensure consistent spacing between download name and progress bar
 void util::print_progress_bar(const std::vector<util::FileDownloadProgress>& files, size_t bar_width) {
+  if (files.empty()) {
+    return;
+  }
+  auto max_length = std::ranges::max(files | std::views::transform([](const util::FileDownloadProgress& file) { return file.get_name().length(); }));
   for (const auto& file : files) {
     size_t current_position = static_cast<size_t>(bar_width * file.get_progress());
-    std::print("{} [", file.get_name());
+
+    // Print filename left-aligned with a width of max_length
+    std::print("{:<{}}", file.get_name(), max_length);
+
+    // Print progress bar
+    std::print(" [");
     for (size_t i = 0; i < bar_width; ++i) {
       if (i < current_position) {
         std::print("=");

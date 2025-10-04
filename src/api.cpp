@@ -152,7 +152,7 @@ std::vector<std::string> api::RealDebridClient::get_download_links(const std::ve
 
   std::vector<std::future<std::optional<std::string>>> futures;
 
-  // BUG: No wait time for server to generate download links leading to program freezing
+  // BUG: Bucket is not refilling
   for (const auto& link : links) {
     futures.push_back(std::async(std::launch::async, [&] {
       bucket.consume();
