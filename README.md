@@ -1,6 +1,7 @@
 # real-debrid-download-helper
 
 NOTE: You must have a premium Real-Debrid subscription in order to use the API.
+
 A command line tool to simplify the process of downloading torrents through Real-Debrid.
 
 ## Features
