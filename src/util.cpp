@@ -104,7 +104,10 @@ util::TokenBucket::TokenBucket(size_t capacity, double refill_rate_per_sec)
 }
 
 util::TokenBucket::~TokenBucket() {
-  stop_flag = true;
+  {
+    std::lock_guard<std::mutex> lock(bucket_mtx);
+    stop_flag = true;
+  }
   cv.notify_all();
   if (refill_thread.joinable()) {
     refill_thread.join();
@@ -125,6 +128,7 @@ void util::TokenBucket::refill() {
   double seconds_passed = std::chrono::duration<double>(time_now - last_refill).count();
   size_t new_tokens = static_cast<size_t>(seconds_passed * refill_rate);
   if (new_tokens > 0) {
+    std::lock_guard<std::mutex> lock(bucket_mtx);
     tokens = std::min(capacity, tokens + new_tokens);
     last_refill = time_now;
     cv.notify_all();
