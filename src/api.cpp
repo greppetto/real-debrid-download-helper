@@ -148,11 +148,10 @@ std::vector<std::string> api::RealDebridClient::get_download_links(const std::ve
   unrestricted_download_links.reserve(links.size());
 
   // API restricted to 250 requests per minute
-  util::TokenBucket bucket(50, 1.0);
+  util::TokenBucket bucket(4, 4);
 
   std::vector<std::future<std::optional<std::string>>> futures;
 
-  // BUG: Bucket is not refilling
   for (const auto& link : links) {
     futures.push_back(std::async(std::launch::async, [&] {
       bucket.consume();

@@ -5,6 +5,7 @@
 #include <iostream>
 #include <mutex>
 #include <string>
+#include <thread>
 #include <tuple>
 
 namespace util {
@@ -41,6 +42,9 @@ public:
   // Constructor
   TokenBucket(size_t capacity, double refill_rate_per_sec);
 
+  // Destructor
+  ~TokenBucket();
+
   // Consume token
   void consume();
 
@@ -51,9 +55,11 @@ private:
   size_t capacity;
   size_t tokens;
   double refill_rate;
+  bool stop_flag;
   std::chrono::steady_clock::time_point last_refill;
   std::mutex bucket_mtx;
   std::condition_variable cv;
+  std::thread refill_thread;
 };
 
 class File {

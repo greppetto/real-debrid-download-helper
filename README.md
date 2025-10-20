@@ -1,7 +1,8 @@
 # real-debrid-download-helper
 
-NOTE: You must have a premium Real-Debrid subscription in order to use the API.
 A command line tool to simplify the process of downloading torrents through Real-Debrid.
+
+NOTE: You must have a premium Real-Debrid subscription in order to use the API.
 
 ## Features
 
@@ -11,11 +12,6 @@ A command line tool to simplify the process of downloading torrents through Real
 - Optionally display the unrestricted links
 - Optionally dump the links into a .txt file in folder of choice
 - Optionally download files using `aria2c`
-
-## Known BUGS
-
-- The token bucket implementation to control rate of API calls is currently broken.
-  - WORKAROUND: The initial tokens has been set to 50, so if the number of files in any torrent is less than 50, everything should work fine.
 
 ## Build
 
