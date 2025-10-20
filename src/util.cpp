@@ -94,16 +94,32 @@ std::tuple<std::string, std::string, bool, std::string, bool> util::parse_argume
 }
 
 util::TokenBucket::TokenBucket(size_t capacity, double refill_rate_per_sec)
-    : capacity(capacity), tokens(capacity), refill_rate(refill_rate_per_sec), last_refill(std::chrono::steady_clock::now()) {}
+    : capacity(capacity), tokens(capacity), refill_rate(refill_rate_per_sec), last_refill(std::chrono::steady_clock::now()) {
+  refill_thread = std::thread([this]() {
+    while (!stop_flag) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+      refill();
+    }
+  });
+}
+
+util::TokenBucket::~TokenBucket() {
+  stop_flag = true;
+  cv.notify_all();
+  if (refill_thread.joinable()) {
+    refill_thread.join();
+  }
+}
 
 void util::TokenBucket::consume() {
   std::unique_lock<std::mutex> lock(bucket_mtx);
-  refill();
-  cv.wait(lock, [this] { return tokens > 0; });
+  cv.wait(lock, [this] { return tokens > 0 || stop_flag; });
+  if (stop_flag) {
+    return;
+  }
   --tokens;
 }
 
-// BUG: Refill doesn't seem to be working; temporary workaround implemented by increasing initial available tokens
 void util::TokenBucket::refill() {
   auto time_now = std::chrono::steady_clock::now();
   double seconds_passed = std::chrono::duration<double>(time_now - last_refill).count();
@@ -180,10 +196,20 @@ util::FileDownloadProgress::~FileDownloadProgress() {
   }
 }
 
+// TODO: Ensure consistent spacing between download name and progress bar
 void util::print_progress_bar(const std::vector<util::FileDownloadProgress>& files, size_t bar_width) {
+  if (files.empty()) {
+    return;
+  }
+  auto max_length = std::ranges::max(files | std::views::transform([](const util::FileDownloadProgress& file) { return file.get_name().length(); }));
   for (const auto& file : files) {
     size_t current_position = static_cast<size_t>(bar_width * file.get_progress());
-    std::print("{} [", file.get_name());
+
+    // Print filename left-aligned with a width of max_length
+    std::print("{:<{}}", file.get_name(), max_length);
+
+    // Print progress bar
+    std::print(" [");
     for (size_t i = 0; i < bar_width; ++i) {
       if (i < current_position) {
         std::print("=");

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.31)
-project(alpha VERSION 0.1.0 LANGUAGES CXX)
+project(alpha VERSION 0.2.0 LANGUAGES CXX)
 
 # Prevent src loc builds
 if("${PROJECT_SOURCE_DIR}" STREQUAL "${PROJECT_BINARY_DIR}")

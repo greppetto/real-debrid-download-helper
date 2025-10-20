@@ -157,7 +157,8 @@ int main(int argc, char* argv[]) {
     std::println("\nProcess executed successfully.");
     return 0;
   } else if (state == AppState::Error) {
-    std::println("Please try again.");
+    std::println("Something wrong went unconsidered. Please report the problem as descriptively as possible on GitHub.");
+    std::println("https://github.com/greppetto/real-debrid-download-helper");
     return 1;
   }
 }
