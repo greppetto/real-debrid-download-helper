@@ -2,7 +2,7 @@
 
 A command line tool to simplify the process of downloading torrents through Real-Debrid.
 
-NOTE: You must have a premium Real-Debrid subscription in order to use the API.
+NOTE: You must have a premium Real-Debrid subscription in order to use the API. Additionally, in order to download through aria2, please [install](https://github.com/aria2/aria2) it separately.
 
 ## Features
 
