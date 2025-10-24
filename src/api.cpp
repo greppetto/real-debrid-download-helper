@@ -79,9 +79,17 @@ std::optional<api::Torrent> api::RealDebridClient::send_magnet_link(const std::s
             std::string torrent_name = parsed_json.contains("filename") && parsed_json["filename"].is_string()
                                            ? parsed_json["filename"].get<std::string>()
                                            : "Unknown filename";
+            std::vector<std::string> file_names = files | std::ranges::views::transform([](const std::string& file) {
+                                                    auto position = file.substr(1).find('/');
+                                                    return position != std::string::npos ? file.substr(position + 2) : file;
+                                                  }) |
+                                                  std::ranges::to<std::vector>();
+            std::println("File names:");
+            for (auto& a : file_names) {
+              std::println("{}", a);
+            }
             auto size = parsed_json.contains("original_bytes") ? parsed_json["original_bytes"].get<int>() : 0;
-            api::Torrent torrent{generated_id, torrent_name, std::vector<std::string>{files.begin(), files.end()},
-                                 std::vector<std::string>{links.begin(), links.end()}, size};
+            api::Torrent torrent{generated_id, torrent_name, file_names, std::vector<std::string>{links.begin(), links.end()}, size};
             return torrent;
           }
         }
@@ -135,7 +143,7 @@ bool api::RealDebridClient::wait_for_status(const std::string& torrent_id, const
 
     std::this_thread::sleep_for(static_cast<std::chrono::seconds>(interval));
     if (interval < max_interval) {
-      interval = std::min(interval * 2, max_interval);
+      interval = std::min(static_cast<int>(interval * 1.2), max_interval);
     }
   }
   std::println("", desired_status);

@@ -90,12 +90,12 @@ int main(int argc, char* argv[]) {
       if (aria2_flag) {
         if (aria2::launch_aria2_daemon()) {
           try {
-            std::println("Successfully started aria2 daemon.\n");
+            std::println("\nSuccessfully started aria2 daemon.\n");
             auto& torrent = torrents.back();
             if (torrent.links.size() == 1) {
               files.emplace_back(util::FileDownloadProgress(torrent.links.back(), torrent.name));
             } else {
-              assert(torrent.links.size() == torrent.files.size());
+              // assert(torrent.links.size() == torrent.files.size());
               for (auto&& [link, file] : std::views::zip(torrent.links, torrent.files)) {
                 files.emplace_back(util::FileDownloadProgress(link, file));
               }

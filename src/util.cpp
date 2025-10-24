@@ -200,7 +200,6 @@ util::FileDownloadProgress::~FileDownloadProgress() {
   }
 }
 
-// TODO: Ensure consistent spacing between download name and progress bar
 void util::print_progress_bar(const std::vector<util::FileDownloadProgress>& files, size_t bar_width) {
   if (files.empty()) {
     return;
