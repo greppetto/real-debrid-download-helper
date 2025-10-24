@@ -92,13 +92,16 @@ int main(int argc, char* argv[]) {
           try {
             std::println("\nSuccessfully started aria2 daemon.\n");
             auto& torrent = torrents.back();
-            if (torrent.links.size() == 1) {
-              files.emplace_back(util::FileDownloadProgress(torrent.links.back(), torrent.name));
-            } else {
-              // assert(torrent.links.size() == torrent.files.size());
-              for (auto&& [link, file] : std::views::zip(torrent.links, torrent.files)) {
-                files.emplace_back(util::FileDownloadProgress(link, file));
-              }
+            // if (torrent.links.size() == 1) {
+            //   files.emplace_back(util::FileDownloadProgress(torrent.links.back(), torrent.files.));
+            // } else {
+            //   // assert(torrent.links.size() == torrent.files.size());
+            //   for (auto&& [link, file] : std::views::zip(torrent.links, torrent.files)) {
+            //     files.emplace_back(util::FileDownloadProgress(link, file));
+            //   }
+            // }
+            for (auto&& [link, file] : std::views::zip(torrent.links, torrent.files)) {
+              files.emplace_back(util::FileDownloadProgress(link, file));
             }
             if (state != AppState::Error) {
               state = AppState::MonitorDownloads;
@@ -116,24 +119,53 @@ int main(int argc, char* argv[]) {
     }
 
     case AppState::MonitorDownloads: {
+      size_t total_downloads{files.size()};
+      size_t completed_downloads{0};
+      long total_size{0};
+      float downloaded_size{0};
+
+      if (total_downloads > 10) {
+        for (auto& file : files) {
+          if (auto parsed_response = aria2::rpc_get_status(file.get_gid())) {
+            auto& parsed_json = (*parsed_response);
+            if (parsed_json.contains("result")) {
+              if (const auto& total_individual_length = std::stol(parsed_json["result"]["totalLength"].get<std::string>());
+                  total_individual_length != 0) {
+                total_size += total_individual_length;
+              }
+            }
+          }
+        }
+      }
+
       while (!shutdown_handler::shutdown_requested) {
         for (auto& file : files) {
           if (auto parsed_response = aria2::rpc_get_status(file.get_gid())) {
             auto& parsed_json = (*parsed_response);
             if (parsed_json.contains("result")) {
-              if (const auto& total_length = std::stol(parsed_json["result"]["totalLength"].get<std::string>()); total_length != 0) {
-                file.set_progress(std::stof(parsed_json["result"]["completedLength"].get<std::string>()) / total_length);
+              if (const auto& total_individual_length = std::stol(parsed_json["result"]["totalLength"].get<std::string>());
+                  total_individual_length != 0) {
+                auto current_individual_length = std::stof(parsed_json["result"]["completedLength"].get<std::string>());
+                file.set_progress(current_individual_length / total_individual_length);
+                downloaded_size += current_individual_length;
                 if (file.get_progress() >= 1.0f) {
                   file.mark_completed();
+                  completed_downloads += 1;
                 }
               }
             }
           }
         }
 
-        std::print("\033[{}A", files.size());
-        util::print_progress_bar(files);
-        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        if (total_downloads > 10) {
+          std::print("\r{} of {} files completed ({}%)", completed_downloads, total_downloads, (downloaded_size / total_size) * 100);
+          std::fflush(stdout);
+          downloaded_size = 0.0;
+        } else {
+          util::print_progress_bar(files);
+          std::print("\033[{}A", files.size());
+          std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        }
 
         if (static_cast<long>(files.size()) ==
             std::ranges::count_if(files, [](const util::FileDownloadProgress& file) { return file.get_completion_status(); })) {

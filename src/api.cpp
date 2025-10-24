@@ -84,10 +84,6 @@ std::optional<api::Torrent> api::RealDebridClient::send_magnet_link(const std::s
                                                     return position != std::string::npos ? file.substr(position + 2) : file;
                                                   }) |
                                                   std::ranges::to<std::vector>();
-            std::println("File names:");
-            for (auto& a : file_names) {
-              std::println("{}", a);
-            }
             auto size = parsed_json.contains("original_bytes") ? parsed_json["original_bytes"].get<int>() : 0;
             api::Torrent torrent{generated_id, torrent_name, file_names, std::vector<std::string>{links.begin(), links.end()}, size};
             return torrent;
