@@ -123,7 +123,7 @@ public:
 private:
   std::optional<std::string> gid;
   std::string name;
-  float progress;
+  float progress{0};
   bool completion_status;
 };
 
