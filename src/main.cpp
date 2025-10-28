@@ -33,6 +33,8 @@ int main(int argc, char* argv[]) {
 
   std::vector<util::FileDownloadProgress> files;
 
+  std::print("\033[?25l"); // hide cursor
+
   // Process loop
   while (!shutdown_handler::shutdown_requested && state != AppState::Finished && state != AppState::Error) {
     switch (state) {
@@ -137,29 +139,19 @@ int main(int argc, char* argv[]) {
           }
         }
 
-        // if (total_downloads > 10) {
-        //   std::print("\r{} of {} files completed ({}%)", completed_downloads, total_downloads, (downloaded_size / total_size) * 100);
-        //   std::fflush(stdout);
-        //   downloaded_size = 0.0;
-        //   std::this_thread::sleep_for(std::chrono::milliseconds(200));
-        // } else {
-        // std::print("\033[{}A", files.size());
-        util::print_progress_bar(files);
-        std::print("\033[{}A", std::ranges::count_if(files, [](const util::FileDownloadProgress& file) {
-                     return file.get_progress() != 0 && !file.get_completion_status();
-                   }));
-        std::this_thread::sleep_for(std::chrono::milliseconds(200));
-        // }
+        auto active_count = std::ranges::count_if(
+            files, [](const util::FileDownloadProgress& file) { return file.get_progress() != 0 && !file.get_completion_status(); });
 
-        // if (static_cast<long>(files.size()) ==
-        //     std::ranges::count_if(files, [](const util::FileDownloadProgress& file) { return file.get_completion_status(); })) {
-        //   std::println("Download(s) complete!");
-        //   break;
-        // }
+        util::print_progress_bar(files);
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
 
         if (completed_downloads == total_downloads) {
-          std::println("Download(s) complete!");
+          std::println("\n\nDownload(s) complete!");
           break;
+        }
+
+        if (active_count > 0) {
+          std::print("\033[{}A", active_count);
         }
       }
 
@@ -173,13 +165,16 @@ int main(int argc, char* argv[]) {
   }
   if (shutdown_handler::shutdown_requested) {
     std::println("\nProcess terminated gracefully and successfully.");
+    std::print("\033[?25h");
     return 1;
   } else if (state == AppState::Finished) {
     std::println("\nProcess executed successfully.");
+    std::print("\033[?25h");
     return 0;
   } else if (state == AppState::Error) {
     std::println("Something wrong went unconsidered. Please report the problem as descriptively as possible on GitHub.");
     std::println("https://github.com/greppetto/real-debrid-download-helper");
+    std::print("\033[?25h");
     return 1;
   }
 }
