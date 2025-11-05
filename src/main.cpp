@@ -120,6 +120,9 @@ int main(int argc, char* argv[]) {
     case AppState::MonitorDownloads: {
       size_t total_downloads{files.size()};
       size_t completed_downloads{0};
+      auto max_length =
+          std::ranges::max(files | std::views::transform([](const util::FileDownloadProgress& file) { return file.get_name().length(); }));
+      size_t bar_length = 40;
 
       while (!shutdown_handler::shutdown_requested) {
         for (auto& file : files) {
@@ -133,6 +136,7 @@ int main(int argc, char* argv[]) {
                 if (file.get_progress() >= 1.0f && !file.get_completion_status()) {
                   file.mark_completed();
                   completed_downloads += 1;
+                  std::println("{:<{}} Completed!", file.get_name(), max_length + bar_length);
                 }
               }
             }
@@ -142,7 +146,7 @@ int main(int argc, char* argv[]) {
         auto active_count = std::ranges::count_if(
             files, [](const util::FileDownloadProgress& file) { return file.get_progress() != 0 && !file.get_completion_status(); });
 
-        util::print_progress_bar(files);
+        util::print_progress_bar(files, max_length, bar_length);
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
 
         if (completed_downloads == total_downloads) {

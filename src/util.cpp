@@ -200,11 +200,10 @@ util::FileDownloadProgress::~FileDownloadProgress() {
   }
 }
 
-void util::print_progress_bar(const std::vector<util::FileDownloadProgress>& files, size_t bar_width) {
+void util::print_progress_bar(const std::vector<util::FileDownloadProgress>& files, size_t max_length, size_t bar_width) {
   if (files.empty()) {
     return;
   }
-  auto max_length = std::ranges::max(files | std::views::transform([](const util::FileDownloadProgress& file) { return file.get_name().length(); }));
   for (const auto& file : files) {
     if (file.get_progress() != 0 && !file.get_completion_status()) {
       size_t current_position = static_cast<size_t>(bar_width * file.get_progress());
