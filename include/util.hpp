@@ -45,6 +45,9 @@ public:
   // Destructor
   ~TokenBucket();
 
+  TokenBucket(const TokenBucket&) = delete;
+  TokenBucket& operator=(const TokenBucket&) = delete;
+
   // Consume token
   void consume();
 
@@ -67,6 +70,9 @@ public:
   explicit File(std::string path);
 
   ~File();
+
+  File(const File&) = delete;
+  File& operator=(const File&) = delete;
 
   void keep_file();
 
@@ -123,10 +129,10 @@ public:
 private:
   std::optional<std::string> gid;
   std::string name;
-  float progress;
+  float progress{0};
   bool completion_status;
 };
 
-void print_progress_bar(const std::vector<FileDownloadProgress>& files, size_t bar_width = 40);
+void print_progress_bar(const std::vector<FileDownloadProgress>& files, size_t max_length, size_t bar_width = 40);
 
 } // namespace util
