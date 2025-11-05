@@ -33,6 +33,8 @@ int main(int argc, char* argv[]) {
 
   std::vector<util::FileDownloadProgress> files;
 
+  std::print("\033[?25l"); // hide cursor
+
   // Process loop
   while (!shutdown_handler::shutdown_requested && state != AppState::Finished && state != AppState::Error) {
     switch (state) {
@@ -90,12 +92,12 @@ int main(int argc, char* argv[]) {
       if (aria2_flag) {
         if (aria2::launch_aria2_daemon()) {
           try {
-            std::println("Successfully started aria2 daemon.\n");
+            std::println("\nSuccessfully started aria2 daemon.\n");
             auto& torrent = torrents.back();
             if (torrent.links.size() == 1) {
               files.emplace_back(util::FileDownloadProgress(torrent.links.back(), torrent.name));
             } else {
-              assert(torrent.links.size() == torrent.files.size());
+              // assert(torrent.links.size() == torrent.files.size());
               for (auto&& [link, file] : std::views::zip(torrent.links, torrent.files)) {
                 files.emplace_back(util::FileDownloadProgress(link, file));
               }
@@ -116,29 +118,44 @@ int main(int argc, char* argv[]) {
     }
 
     case AppState::MonitorDownloads: {
+      size_t total_downloads{files.size()};
+      size_t completed_downloads{0};
+      auto max_length =
+          std::ranges::max(files | std::views::transform([](const util::FileDownloadProgress& file) { return file.get_name().length(); }));
+      size_t bar_length = 40;
+
       while (!shutdown_handler::shutdown_requested) {
         for (auto& file : files) {
           if (auto parsed_response = aria2::rpc_get_status(file.get_gid())) {
             auto& parsed_json = (*parsed_response);
             if (parsed_json.contains("result")) {
-              if (const auto& total_length = std::stol(parsed_json["result"]["totalLength"].get<std::string>()); total_length != 0) {
-                file.set_progress(std::stof(parsed_json["result"]["completedLength"].get<std::string>()) / total_length);
-                if (file.get_progress() >= 1.0f) {
+              if (const auto& total_individual_length = std::stol(parsed_json["result"]["totalLength"].get<std::string>());
+                  total_individual_length != 0) {
+                auto current_individual_length = std::stof(parsed_json["result"]["completedLength"].get<std::string>());
+                file.set_progress(current_individual_length / total_individual_length);
+                if (file.get_progress() >= 1.0f && !file.get_completion_status()) {
                   file.mark_completed();
+                  completed_downloads += 1;
+                  std::println("{:<{}} Completed!", file.get_name(), max_length + bar_length);
                 }
               }
             }
           }
         }
 
-        std::print("\033[{}A", files.size());
-        util::print_progress_bar(files);
+        auto active_count = std::ranges::count_if(
+            files, [](const util::FileDownloadProgress& file) { return file.get_progress() != 0 && !file.get_completion_status(); });
+
+        util::print_progress_bar(files, max_length, bar_length);
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
 
-        if (static_cast<long>(files.size()) ==
-            std::ranges::count_if(files, [](const util::FileDownloadProgress& file) { return file.get_completion_status(); })) {
-          std::println("Download(s) complete!");
+        if (completed_downloads == total_downloads) {
+          std::println("\n\nDownload(s) complete!");
           break;
+        }
+
+        if (active_count > 0) {
+          std::print("\033[{}A", active_count);
         }
       }
 
@@ -152,13 +169,16 @@ int main(int argc, char* argv[]) {
   }
   if (shutdown_handler::shutdown_requested) {
     std::println("\nProcess terminated gracefully and successfully.");
+    std::print("\033[?25h");
     return 1;
   } else if (state == AppState::Finished) {
     std::println("\nProcess executed successfully.");
+    std::print("\033[?25h");
     return 0;
   } else if (state == AppState::Error) {
     std::println("Something wrong went unconsidered. Please report the problem as descriptively as possible on GitHub.");
     std::println("https://github.com/greppetto/real-debrid-download-helper");
+    std::print("\033[?25h");
     return 1;
   }
 }

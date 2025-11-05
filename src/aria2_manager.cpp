@@ -127,7 +127,7 @@ std::optional<std::string> aria2::rpc_add_download(const std::string& link) {
   if (response.status_code == 200) {
     auto parsed_json = json::parse(response.text);
     if (parsed_json.contains("result")) {
-      std::println("GID: {}", parsed_json["result"].get<std::string>());
+      // std::println("GID: {}", parsed_json["result"].get<std::string>());
       return parsed_json["result"].get<std::string>();
     }
   }
